@@ -9,6 +9,8 @@ Reserve_Sin/
 ├── androidApp/                 # Android-модуль
 ├── server/                     # Go-модуль
 │   ├── cmd/reserve-server/     # Точка входа сервера
+│   ├── internal/auth/          # Bearer-аутентификация API
+│   ├── internal/database/      # SQLite, встроенные SQL-миграции и их запуск
 │   └── internal/httpapi/       # HTTP-маршрутизация и /health
 │   └── internal/logging/       # Конфигурация slog и HTTP-логирование
 ├── gradle/libs.versions.toml   # Версии Android-зависимостей
@@ -25,15 +27,15 @@ Reserve_Sin/
 - `docs/ТЗ.md` — исходное техническое задание.
 - `docs/architecture.md` — целевая схема компонентов.
 - `docs/configuration.md` — подтверждённые требования к конфигурации и секретам.
-- `docs/database.md` — планируемая серверная модель SQLite.
+- `docs/database.md` — реализованная начальная серверная модель SQLite.
 - `docs/api.md` — контракт API на уровне методов, заданном ТЗ.
 - `docs/integrations.md` — внешние компоненты окружения.
 - `docs/deployment.md` — целевое размещение и резервное копирование.
 - `docs/development.md` — ограничения текущей локальной разработки и будущие проверки.
 - `docs/decisions/` — решения, прямо закреплённые ТЗ.
 
-`androidApp` содержит базовый `MainActivity` с Compose-экраном. `server` содержит `GET /health`, который явно сообщает, что база ещё не настроена, и пакет `internal/logging` на стандартном `log/slog`. Версии Android-зависимостей централизованы в `gradle/libs.versions.toml`; зависимость Go-маршрутизатора — в `server/go.mod`.
+`androidApp` содержит базовый `MainActivity` с Compose-экраном. `server` содержит SQLite-инициализацию с миграциями, Bearer-защищённый REST API, `GET /health`, проверяющий доступность базы, и пакет `internal/logging` на стандартном `log/slog`. Версии Android-зависимостей централизованы в `gradle/libs.versions.toml`; зависимости Go-сервера — в `server/go.mod`.
 
 ## Ожидаемые, но отсутствующие материалы
 
-ТЗ требует SQL-миграции, systemd unit, конфигурацию Caddy, пример `reserve.env`, скрипт резервного копирования и инструкции переноса данных. Эти материалы пока отсутствуют; их будущие пути ТЗ не устанавливает.
+ТЗ требует systemd unit, конфигурацию Caddy, скрипт резервного копирования и инструкции переноса данных. Эти материалы пока отсутствуют; их будущие пути ТЗ не устанавливает.

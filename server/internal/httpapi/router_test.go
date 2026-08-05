@@ -2,24 +2,31 @@ package httpapi
 
 import (
 	"bytes"
+	"context"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"reserve-sin/server/internal/database"
 	"reserve-sin/server/internal/logging"
 )
 
 func TestHealth(t *testing.T) {
 	var logs bytes.Buffer
 	logger := logging.New(logging.Config{Environment: logging.EnvironmentDevelopment, Level: slog.LevelInfo}, &logs)
+	db, err := database.Open(context.Background(), ":memory:")
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
 	request.Header.Set("X-Request-ID", "secret-request-id")
 	request.Header.Set("Authorization", "Bearer secret-token")
 	response := httptest.NewRecorder()
 
-	NewRouter(logger).ServeHTTP(response, request)
+	NewRouter(logger, db, "test-token").ServeHTTP(response, request)
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
