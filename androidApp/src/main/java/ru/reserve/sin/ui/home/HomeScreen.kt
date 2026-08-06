@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -30,13 +31,21 @@ import java.text.NumberFormat
 import java.util.Locale
 
 @Composable
-fun HomeRoute(viewModel: HomeViewModel) {
+fun HomeRoute(
+    viewModel: HomeViewModel,
+    onManageCategories: () -> Unit,
+    onAddOperation: () -> Unit,
+) {
     val state by viewModel.uiState.collectAsState()
-    HomeScreen(state)
+    HomeScreen(state, onManageCategories, onAddOperation)
 }
 
 @Composable
-fun HomeScreen(state: HomeUiState) {
+fun HomeScreen(
+    state: HomeUiState,
+    onManageCategories: () -> Unit,
+    onAddOperation: () -> Unit,
+) {
     if (state.isLoading) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -67,8 +76,16 @@ fun HomeScreen(state: HomeUiState) {
                 lastSuccessfulSyncAt = state.lastSuccessfulSyncAt,
             )
         }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onManageCategories) { Text("Категории") }
+                Button(onClick = onAddOperation, enabled = state.categories.isNotEmpty()) {
+                    Text("Добавить операцию")
+                }
+            }
+        }
         if (state.categories.isEmpty()) {
-            item { EmptyCategoriesCard() }
+            item { EmptyCategoriesCard(onManageCategories) }
         } else {
             item {
                 Text(
@@ -116,15 +133,17 @@ private fun TotalBalanceCard(
 }
 
 @Composable
-private fun EmptyCategoriesCard() {
+private fun EmptyCategoriesCard(onManageCategories: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text("Здесь появятся категории", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(6.dp))
             Text(
-                "Добавление категорий и импорт истории будут доступны на следующих этапах.",
+                "Создайте первую категорию, чтобы начать вести локальный учёт.",
                 style = MaterialTheme.typography.bodyMedium,
             )
+            Spacer(Modifier.height(12.dp))
+            Button(onClick = onManageCategories) { Text("Создать категорию") }
         }
     }
 }

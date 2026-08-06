@@ -12,6 +12,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Database(
@@ -146,6 +147,24 @@ interface HomeDao {
 
     @Query("SELECT lastSuccessfulSyncAt FROM sync_metadata WHERE id = 1")
     fun observeLastSuccessfulSyncAt(): Flow<String?>
+
+    @Query("SELECT * FROM categories ORDER BY isArchived, sortOrder, id")
+    fun observeCategories(): Flow<List<CategoryEntity>>
+
+    @Query("SELECT * FROM categories WHERE isArchived = 0 ORDER BY sortOrder, id")
+    fun observeActiveCategories(): Flow<List<CategoryEntity>>
+
+    @Query("SELECT MAX(sortOrder) FROM categories")
+    suspend fun lastCategorySortOrder(): Long?
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertCategory(category: CategoryEntity)
+
+    @Update
+    suspend fun updateCategory(category: CategoryEntity)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertTransactions(transactions: List<TransactionEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveSyncMetadata(metadata: SyncMetadataEntity)
