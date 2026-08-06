@@ -22,7 +22,7 @@ Reserve_Sin — персональное Android-приложение для р�
 
 ## Требования, установка и запуск
 
-Для Android нужен JDK 17, Android SDK с API 36 и Gradle, совместимый с Android Gradle Plugin 9.2.0. Сборка debug APK: `gradle :androidApp:assembleDebug`.
+Для Android нужен JDK 17, Android SDK с API 37 и Gradle, совместимый с Android Gradle Plugin 9.2.0. Сборка debug APK: `gradle :androidApp:assembleDebug`.
 
 Для сервера нужны Go 1.22 или новее, C-компилятор и CGO (SQLite-драйвер `github.com/mattn/go-sqlite3`). Перед запуском задайте `RESERVE_SIN_API_TOKEN`; проверка: `cd server && go test ./...`, запуск: `cd server && RESERVE_SIN_API_TOKEN=... go run ./cmd/reserve-server`.
 

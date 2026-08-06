@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "ru.reserve.sin"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "ru.reserve.sin"

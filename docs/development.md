@@ -2,7 +2,7 @@
 
 ## Текущее состояние
 
-В репозитории есть Gradle-конфигурация Android, Gradle Wrapper 9.4.1 и `server/go.mod`. Для Android нужен JDK, предоставленный Android Studio, и Android SDK API 36; Android-код компилируется с совместимостью Java 17. Для Go нужны Go 1.22 или новее, C-компилятор и CGO: SQLite подключён через `github.com/mattn/go-sqlite3`.
+В репозитории есть Gradle-конфигурация Android, Gradle Wrapper 9.4.1 и `server/go.mod`. Для Android нужен JDK, предоставленный Android Studio, и Android SDK API 37; Android-код компилируется с совместимостью Java 17. Для Go нужны Go 1.22 или новее, C-компилятор и CGO: SQLite подключён через `github.com/mattn/go-sqlite3`.
 
 Текущая версия проекта хранится только в корневом файле `VERSION`; Android-конфигурация считывает его при сборке. При AGP 9.x Kotlin поддерживается самим Android Gradle Plugin, поэтому отдельный плагин `org.jetbrains.kotlin.android` не подключается. Room пока использует `com.android.legacy-kapt`, совместимый со встроенным Kotlin AGP 9.x.
 
