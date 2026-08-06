@@ -1,5 +1,6 @@
 package ru.reserve.sin.ui.categories
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -24,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -36,6 +39,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.reserve.sin.data.ReserveRepository
 import ru.reserve.sin.data.local.CategoryEntity
+import ru.reserve.sin.ui.theme.ReserveSinPrimaryButtonBackground
+
+private val CategoryActionButtonBorder = BorderStroke(1.dp, ReserveSinPrimaryButtonBackground)
 
 class CategoriesViewModel(private val repository: ReserveRepository) : ViewModel() {
     val categories = repository.observeCategories()
@@ -105,7 +111,7 @@ private fun CategoriesScreen(
         item {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Категории", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                OutlinedButton(onClick = onBack) { Text("Назад") }
+                OutlinedButton(onClick = onBack, border = CategoryActionButtonBorder) { Text("Назад") }
             }
         }
         message?.let { item { Text(it, color = MaterialTheme.colorScheme.primary) } }
@@ -113,17 +119,39 @@ private fun CategoriesScreen(
         items(categories, key = { it.id }) { category ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(category.name, style = MaterialTheme.typography.titleMedium)
-                    Text(if (category.isArchived) "Архив" else "Активна", style = MaterialTheme.typography.bodySmall)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { editor = category }) { Text("Изменить") }
-                        OutlinedButton(onClick = { onArchive(category, !category.isArchived) }) {
-                            Text(if (category.isArchived) "Восстановить" else "В архив")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(category.name, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                if (category.isArchived) "Архив" else "Активна",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                         }
-                    }
-                    if (category.remoteId == null) {
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedButton(onClick = { categoryToDelete = category }) { Text("Удалить") }
+                        Spacer(Modifier.width(12.dp))
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            OutlinedButton(
+                                onClick = { editor = category },
+                                border = CategoryActionButtonBorder,
+                            ) { Text("Изменить") }
+                            OutlinedButton(
+                                onClick = { onArchive(category, !category.isArchived) },
+                                border = CategoryActionButtonBorder,
+                            ) {
+                                Text(if (category.isArchived) "Из архива" else "В архив")
+                            }
+                            if (category.remoteId == null) {
+                                OutlinedButton(
+                                    onClick = { categoryToDelete = category },
+                                    border = CategoryActionButtonBorder,
+                                ) { Text("Удалить") }
+                            }
+                        }
                     }
                 }
             }
@@ -144,7 +172,11 @@ private fun CategoriesScreen(
             confirmButton = {
                 Button(onClick = { onDelete(category); categoryToDelete = null }) { Text("Удалить") }
             },
-            dismissButton = { OutlinedButton(onClick = { categoryToDelete = null }) { Text("Отмена") } },
+            dismissButton = {
+                OutlinedButton(onClick = { categoryToDelete = null }, border = CategoryActionButtonBorder) {
+                    Text("Отмена")
+                }
+            },
         )
     }
 }
@@ -168,6 +200,8 @@ private fun CategoryEditorDialog(
             }
         },
         confirmButton = { Button(onClick = { onSave(name, target) }) { Text("Сохранить") } },
-        dismissButton = { OutlinedButton(onClick = onDismiss) { Text("Отмена") } },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss, border = CategoryActionButtonBorder) { Text("Отмена") }
+        },
     )
 }
