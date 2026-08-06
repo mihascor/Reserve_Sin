@@ -32,12 +32,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ru.reserve.sin.data.remote.ServerConnectionChecker
 import ru.reserve.sin.data.remote.ServerConnectionResult
+import ru.reserve.sin.data.ReserveRepository
 import ru.reserve.sin.data.settings.ServerSettings
 import ru.reserve.sin.data.settings.ServerSettingsRepository
 
 class SettingsViewModel(
     private val settingsRepository: ServerSettingsRepository,
     private val connectionChecker: ServerConnectionChecker,
+    private val reserveRepository: ReserveRepository,
 ) : ViewModel() {
     val settings = settingsRepository.settings
     private val _message = MutableStateFlow<String?>(null)
@@ -63,16 +65,31 @@ class SettingsViewModel(
             }
         }
     }
+
+    fun syncNow() {
+        viewModelScope.launch {
+            val settings = settingsRepository.settings.first()
+            val token = settingsRepository.token()
+            if (token.isNullOrBlank()) {
+                _message.value = "Сначала сохраните API-токен"
+                return@launch
+            }
+            runCatching { reserveRepository.sync(settings.serverUrl, token) }
+                .onSuccess { _message.value = "Синхронизировано: категорий ${it.categoriesSynced}, операций ${it.transactionsSynced}, получено изменений ${it.changesReceived}" }
+                .onFailure { _message.value = it.message ?: "Не удалось синхронизировать данные" }
+        }
+    }
 }
 
 class SettingsViewModelFactory(
     private val settingsRepository: ServerSettingsRepository,
     private val connectionChecker: ServerConnectionChecker,
+    private val reserveRepository: ReserveRepository,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         check(modelClass.isAssignableFrom(SettingsViewModel::class.java))
-        return SettingsViewModel(settingsRepository, connectionChecker) as T
+        return SettingsViewModel(settingsRepository, connectionChecker, reserveRepository) as T
     }
 }
 
@@ -80,7 +97,7 @@ class SettingsViewModelFactory(
 fun SettingsRoute(viewModel: SettingsViewModel, onBack: () -> Unit) {
     val settings by viewModel.settings.collectAsState(initial = ServerSettings("", false))
     val message by viewModel.message.collectAsState()
-    SettingsScreen(settings, message, viewModel::save, viewModel::checkConnection, onBack)
+    SettingsScreen(settings, message, viewModel::save, viewModel::checkConnection, viewModel::syncNow, onBack)
 }
 
 @Composable
@@ -89,6 +106,7 @@ private fun SettingsScreen(
     message: String?,
     onSave: (String, String) -> Unit,
     onCheckConnection: () -> Unit,
+    onSyncNow: () -> Unit,
     onBack: () -> Unit,
 ) {
     var serverUrl by remember(settings.serverUrl) { mutableStateOf(settings.serverUrl) }
@@ -143,6 +161,9 @@ private fun SettingsScreen(
                 }
                 OutlinedButton(onClick = onCheckConnection, modifier = Modifier.fillMaxWidth()) {
                     Text("Проверить подключение")
+                }
+                OutlinedButton(onClick = onSyncNow, modifier = Modifier.fillMaxWidth()) {
+                    Text("Синхронизировать сейчас")
                 }
             }
         }

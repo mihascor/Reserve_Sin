@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
                         }
                         "settings" -> {
                             val settingsViewModel: SettingsViewModel = viewModel(
-                                factory = SettingsViewModelFactory(settingsRepository, ServerConnectionChecker()),
+                                factory = SettingsViewModelFactory(settingsRepository, ServerConnectionChecker(), repository),
                             )
                             SettingsRoute(settingsViewModel) { route = "home" }
                         }

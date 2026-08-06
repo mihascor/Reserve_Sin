@@ -13,11 +13,13 @@ import androidx.room.Query
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.Update
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Database(
     entities = [CategoryEntity::class, LabelEntity::class, TransactionEntity::class, SyncMetadataEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 @TypeConverters(SyncStatusConverter::class)
@@ -29,7 +31,15 @@ abstract class ReserveDatabase : RoomDatabase() {
             context,
             ReserveDatabase::class.java,
             "reserve-sin.db",
-        ).build()
+        ).addMigrations(MIGRATION_1_2).build()
+
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE categories ADD COLUMN remoteId TEXT")
+                database.execSQL("ALTER TABLE labels ADD COLUMN remoteId TEXT")
+                database.execSQL("ALTER TABLE transactions ADD COLUMN remoteId TEXT")
+            }
+        }
     }
 }
 
@@ -45,6 +55,7 @@ data class CategoryEntity(
     val createdAt: String,
     val updatedAt: String,
     val revision: Long,
+    val remoteId: String?,
 )
 
 @Entity(tableName = "labels")
@@ -56,6 +67,7 @@ data class LabelEntity(
     val createdAt: String,
     val updatedAt: String,
     val revision: Long,
+    val remoteId: String?,
 )
 
 @Entity(tableName = "transactions")
@@ -73,6 +85,7 @@ data class TransactionEntity(
     val isCancelled: Boolean,
     val syncStatus: SyncStatus,
     val revision: Long?,
+    val remoteId: String?,
 )
 
 @Entity(tableName = "sync_metadata")
@@ -148,6 +161,9 @@ interface HomeDao {
     @Query("SELECT lastSuccessfulSyncAt FROM sync_metadata WHERE id = 1")
     fun observeLastSuccessfulSyncAt(): Flow<String?>
 
+    @Query("SELECT * FROM sync_metadata WHERE id = 1")
+    suspend fun syncMetadata(): SyncMetadataEntity?
+
     @Query("SELECT * FROM categories ORDER BY isArchived, sortOrder, id")
     fun observeCategories(): Flow<List<CategoryEntity>>
 
@@ -165,6 +181,45 @@ interface HomeDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertTransactions(transactions: List<TransactionEntity>)
+
+    @Query("SELECT * FROM categories WHERE remoteId IS NULL AND isArchived = 0 ORDER BY sortOrder, id")
+    suspend fun pendingCategories(): List<CategoryEntity>
+
+    @Query("UPDATE categories SET remoteId = :remoteId, revision = :revision, updatedAt = :updatedAt WHERE id = :localId")
+    suspend fun markCategorySynced(localId: String, remoteId: String, revision: Long, updatedAt: String)
+
+    @Query("SELECT * FROM transactions WHERE syncStatus IN ('PENDING', 'ERROR') ORDER BY occurredAt, id")
+    suspend fun pendingTransactions(): List<TransactionEntity>
+
+    @Query("SELECT remoteId FROM categories WHERE id = :localId")
+    suspend fun categoryRemoteId(localId: String): String?
+
+    @Query("UPDATE transactions SET remoteId = :remoteId, revision = :revision, syncStatus = 'SYNCED', updatedAt = :updatedAt WHERE clientOperationId = :clientOperationId")
+    suspend fun markTransactionSynced(clientOperationId: String, remoteId: String, revision: Long, updatedAt: String)
+
+    @Query("UPDATE transactions SET syncStatus = 'ERROR' WHERE clientOperationId IN (:clientOperationIds)")
+    suspend fun markTransactionsError(clientOperationIds: List<String>)
+
+    @Query("SELECT * FROM categories WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun categoryByRemoteId(remoteId: String): CategoryEntity?
+
+    @Query("SELECT * FROM categories WHERE id = :id LIMIT 1")
+    suspend fun categoryById(id: String): CategoryEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCategory(category: CategoryEntity)
+
+    @Query("SELECT * FROM labels WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun labelByRemoteId(remoteId: String): LabelEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertLabel(label: LabelEntity)
+
+    @Query("SELECT * FROM transactions WHERE clientOperationId = :clientOperationId LIMIT 1")
+    suspend fun transactionByClientOperationId(clientOperationId: String): TransactionEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertTransaction(transaction: TransactionEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveSyncMetadata(metadata: SyncMetadataEntity)
