@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Добавлено
+
+- Начальная Android local-first основа: Room-модели, DAO, Repository, HomeViewModel и главный экран с локальной сводкой.
+
 ## [0.2.0] — 2026-08-05
 
 ### Изменено

@@ -8,7 +8,7 @@
 
 Доступные после установки инструментов проверки:
 
-- `gradle :androidApp:assembleDebug` — сборка debug APK;
+- `gradle :androidApp:assembleDebug` — сборка debug APK и генерация кода Room через Kotlin KAPT;
 - `cd server && go test ./...` — тесты HTTP-маршрута и SQLite-миграций;
 - `cd server && RESERVE_SIN_API_TOKEN=... go run ./cmd/reserve-server` — локальный запуск сервера на `127.0.0.1:8080`; создаёт `server/reserve.db`, если не задан `RESERVE_SIN_DATABASE_PATH`. Токен обязателен и не должен попадать в историю команд на общей машине.
 

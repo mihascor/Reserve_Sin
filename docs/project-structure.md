@@ -7,6 +7,8 @@
 ```text
 Reserve_Sin/
 ├── androidApp/                 # Android-модуль
+│   └── src/main/java/.../data/  # Room-модели, DAO и Repository
+│   └── src/main/java/.../ui/    # Главный экран и ViewModel
 ├── server/                     # Go-модуль
 │   ├── cmd/reserve-server/     # Точка входа сервера
 │   ├── internal/auth/          # Bearer-аутентификация API
@@ -34,7 +36,7 @@ Reserve_Sin/
 - `docs/development.md` — ограничения текущей локальной разработки и будущие проверки.
 - `docs/decisions/` — решения, прямо закреплённые ТЗ.
 
-`androidApp` содержит базовый `MainActivity` с Compose-экраном. `server` содержит SQLite-инициализацию с миграциями, Bearer-защищённый REST API, `GET /health`, проверяющий доступность базы, и пакет `internal/logging` на стандартном `log/slog`. Версии Android-зависимостей централизованы в `gradle/libs.versions.toml`; зависимости Go-сервера — в `server/go.mod`.
+`androidApp` содержит Room-модели локальных данных, DAO, `Repository`, `HomeViewModel` и главный Compose-экран. Создание данных и синхронизация пока отсутствуют. `server` содержит SQLite-инициализацию с миграциями, Bearer-защищённый REST API, `GET /health`, проверяющий доступность базы, и пакет `internal/logging` на стандартном `log/slog`. Версии Android-зависимостей централизованы в `gradle/libs.versions.toml`; зависимости Go-сервера — в `server/go.mod`.
 
 ## Ожидаемые, но отсутствующие материалы
 
