@@ -79,12 +79,16 @@ fun HomeScreen(
             )
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onManageCategories) { Text("Категории") }
-                Button(onClick = onAddOperation, enabled = state.categories.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onManageCategories, modifier = Modifier.fillMaxWidth()) { Text("Категории") }
+                Button(
+                    onClick = onAddOperation,
+                    enabled = state.categories.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Text("Добавить операцию")
                 }
-                Button(onClick = onOpenSettings) { Text("Настройки") }
+                Button(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) { Text("Настройки") }
             }
         }
         if (state.categories.isEmpty()) {
