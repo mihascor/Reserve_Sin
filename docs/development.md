@@ -2,13 +2,13 @@
 
 ## Текущее состояние
 
-В репозитории есть Gradle-конфигурация Android и `server/go.mod`. Для Android нужны JDK 17, Android SDK API 36 и Gradle; для Go — Go 1.22 или новее, C-компилятор и CGO: SQLite подключён через `github.com/mattn/go-sqlite3`. Gradle Wrapper не добавлен, поскольку инструменты Gradle и Java недоступны в текущем окружении для его безопасной генерации.
+В репозитории есть Gradle-конфигурация Android, Gradle Wrapper 9.4.1 и `server/go.mod`. Для Android нужен JDK, предоставленный Android Studio, и Android SDK API 36; Android-код компилируется с совместимостью Java 17. Для Go нужны Go 1.22 или новее, C-компилятор и CGO: SQLite подключён через `github.com/mattn/go-sqlite3`.
 
-Текущая версия проекта хранится только в корневом файле `VERSION`; Android-конфигурация считывает его при сборке. При AGP 9.x Kotlin поддерживается самим Android Gradle Plugin, поэтому отдельный плагин `org.jetbrains.kotlin.android` не подключается.
+Текущая версия проекта хранится только в корневом файле `VERSION`; Android-конфигурация считывает его при сборке. При AGP 9.x Kotlin поддерживается самим Android Gradle Plugin, поэтому отдельный плагин `org.jetbrains.kotlin.android` не подключается. Room пока использует `com.android.legacy-kapt`, совместимый со встроенным Kotlin AGP 9.x.
 
 Доступные после установки инструментов проверки:
 
-- `gradle :androidApp:assembleDebug` — сборка debug APK и генерация кода Room через Kotlin KAPT;
+- `./gradlew :androidApp:assembleDebug` — сборка debug APK и генерация кода Room через legacy KAPT;
 - `cd server && go test ./...` — тесты HTTP-маршрута и SQLite-миграций;
 - `cd server && RESERVE_SIN_API_TOKEN=... go run ./cmd/reserve-server` — локальный запуск сервера на `127.0.0.1:8080`; создаёт `server/reserve.db`, если не задан `RESERVE_SIN_DATABASE_PATH`. Токен обязателен и не должен попадать в историю команд на общей машине.
 - `cd server && RESERVE_SIN_DATABASE_PATH=... go run ./cmd/reserve-import -input /путь/к/истории.csv -source-id имя-источника` — однократный импорт истории в SQLite. Перед запуском для рабочей базы следует создать резервную копию; повторяйте ту же команду только с тем же `source-id`.
