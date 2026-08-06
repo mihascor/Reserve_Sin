@@ -4,6 +4,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
@@ -31,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -164,13 +166,23 @@ private fun OperationLineEditor(
     val selectedName = categories.firstOrNull { it.id == row.categoryId }?.name ?: "Выберите категорию"
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) { Text(selectedName) }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                categories.forEach { category ->
-                    DropdownMenuItem(
-                        text = { Text(category.name) },
-                        onClick = { onUpdate(row.copy(categoryId = category.id)); expanded = false },
-                    )
+            Box {
+                OutlinedButton(
+                    onClick = { expanded = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, Color(0xFFD8B4FE)),
+                ) { Text(selectedName) }
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    border = BorderStroke(1.dp, Color(0xFFD8B4FE)),
+                ) {
+                    categories.forEach { category ->
+                        DropdownMenuItem(
+                            text = { Text(category.name) },
+                            onClick = { onUpdate(row.copy(categoryId = category.id)); expanded = false },
+                        )
+                    }
                 }
             }
             OutlinedTextField(
@@ -188,32 +200,42 @@ private fun OperationLineEditor(
                     Button(
                         onClick = {},
                         modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = ReserveSinPrimaryButtonBackground,
                             contentColor = ReserveSinPrimaryButtonText,
                         ),
                     ) { Text("Пополнение", maxLines = 1) }
                 } else {
-                    OutlinedButton(onClick = { onUpdate(row.copy(isIncome = true)) }, modifier = Modifier.weight(1f)) {
+                    OutlinedButton(
+                        onClick = { onUpdate(row.copy(isIncome = true)) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                    ) {
                         Text("Пополнение", maxLines = 1)
                     }
                 }
                 if (row.isIncome) {
-                    OutlinedButton(onClick = { onUpdate(row.copy(isIncome = false)) }, modifier = Modifier.weight(1f)) {
+                    OutlinedButton(
+                        onClick = { onUpdate(row.copy(isIncome = false)) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                    ) {
                         Text("Списание", maxLines = 1)
                     }
                 } else {
                     Button(
                         onClick = {},
                         modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = ReserveSinPrimaryButtonBackground,
                             contentColor = ReserveSinPrimaryButtonText,
                         ),
                     ) { Text("Списание", maxLines = 1) }
                 }
-                if (canRemove) OutlinedButton(onClick = onRemove) { Text("Удалить") }
             }
+            if (canRemove) OutlinedButton(onClick = onRemove) { Text("Удалить") }
         }
     }
 }

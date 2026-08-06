@@ -1,6 +1,9 @@
 package ru.reserve.sin.ui.home
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,7 +18,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +27,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -83,28 +86,13 @@ fun HomeScreen(
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = onManageCategories,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = homeActionButtonColors(),
-                ) {
-                    Text("Категории", color = ReserveSinPrimaryButtonText)
-                }
-                Button(
+                HomeActionButton(text = "Категории", onClick = onManageCategories)
+                HomeActionButton(
+                    text = "Добавить операцию",
                     onClick = onAddOperation,
                     enabled = state.categories.isNotEmpty(),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = homeActionButtonColors(),
-                ) {
-                    Text("Добавить операцию", color = ReserveSinPrimaryButtonText)
-                }
-                Button(
-                    onClick = onOpenSettings,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = homeActionButtonColors(),
-                ) {
-                    Text("Настройки", color = ReserveSinPrimaryButtonText)
-                }
+                )
+                HomeActionButton(text = "Настройки", onClick = onOpenSettings)
             }
         }
         if (state.categories.isEmpty()) {
@@ -125,10 +113,25 @@ fun HomeScreen(
 }
 
 @Composable
-private fun homeActionButtonColors() = ButtonDefaults.buttonColors(
-    containerColor = ReserveSinPrimaryButtonBackground,
-    contentColor = ReserveSinPrimaryButtonText,
-)
+private fun HomeActionButton(text: String, onClick: () -> Unit, enabled: Boolean = true) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .background(
+                color = if (enabled) ReserveSinPrimaryButtonBackground else MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(24.dp),
+            )
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = if (enabled) ReserveSinPrimaryButtonText else MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelLarge,
+        )
+    }
+}
 
 @Composable
 private fun TotalBalanceCard(
