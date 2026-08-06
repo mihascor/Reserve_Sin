@@ -11,10 +11,12 @@ Reserve_Sin/
 │   └── src/main/java/.../ui/    # Главный экран и ViewModel
 ├── server/                     # Go-модуль
 │   ├── cmd/reserve-server/     # Точка входа сервера
+│   ├── cmd/reserve-import/     # Однократный импорт CSV истории
 │   ├── internal/auth/          # Bearer-аутентификация API
 │   ├── internal/database/      # SQLite, встроенные SQL-миграции и их запуск
 │   └── internal/httpapi/       # HTTP-маршрутизация и /health
 │   └── internal/logging/       # Конфигурация slog и HTTP-логирование
+│   └── internal/importer/      # Разбор CSV и транзакционный импорт
 ├── gradle/libs.versions.toml   # Версии Android-зависимостей
 ├── VERSION                     # Текущая версия проекта
 ├── docs/
@@ -36,7 +38,7 @@ Reserve_Sin/
 - `docs/development.md` — ограничения текущей локальной разработки и будущие проверки.
 - `docs/decisions/` — решения, прямо закреплённые ТЗ.
 
-`androidApp` содержит Room-модели локальных данных, DAO, `Repository`, ViewModel и Compose-экраны главной страницы, категорий и создания операции. Метки, история и синхронизация пока отсутствуют. `server` содержит SQLite-инициализацию с миграциями, Bearer-защищённый REST API, `GET /health`, проверяющий доступность базы, и пакет `internal/logging` на стандартном `log/slog`. Версии Android-зависимостей централизованы в `gradle/libs.versions.toml`; зависимости Go-сервера — в `server/go.mod`.
+`androidApp` содержит Room-модели локальных данных, DAO, `Repository`, ViewModel и Compose-экраны главной страницы, категорий и создания операции. Метки, история и синхронизация пока отсутствуют. `server` содержит SQLite-инициализацию с миграциями, Bearer-защищённый REST API, `GET /health`, проверяющий доступность базы, пакет `internal/logging` на стандартном `log/slog` и транзакционную команду импорта CSV. Версии Android-зависимостей централизованы в `gradle/libs.versions.toml`; зависимости Go-сервера — в `server/go.mod`.
 
 ## Ожидаемые, но отсутствующие материалы
 

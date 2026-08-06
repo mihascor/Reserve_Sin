@@ -11,6 +11,7 @@
 - `gradle :androidApp:assembleDebug` — сборка debug APK и генерация кода Room через Kotlin KAPT;
 - `cd server && go test ./...` — тесты HTTP-маршрута и SQLite-миграций;
 - `cd server && RESERVE_SIN_API_TOKEN=... go run ./cmd/reserve-server` — локальный запуск сервера на `127.0.0.1:8080`; создаёт `server/reserve.db`, если не задан `RESERVE_SIN_DATABASE_PATH`. Токен обязателен и не должен попадать в историю команд на общей машине.
+- `cd server && RESERVE_SIN_DATABASE_PATH=... go run ./cmd/reserve-import -input /путь/к/истории.csv -source-id имя-источника` — однократный импорт истории в SQLite. Перед запуском для рабочей базы следует создать резервную копию; повторяйте ту же команду только с тем же `source-id`.
 
 При первом запуске сервер автоматически применяет SQL-миграции из `server/internal/database/migrations`. Отдельной команды миграции пока нет: миграции выполняются перед началом обработки HTTP-запросов.
 
