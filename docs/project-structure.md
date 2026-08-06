@@ -9,7 +9,7 @@ Reserve_Sin/
 ├── androidApp/                 # Android-модуль
 │   └── src/main/java/.../data/  # Room-модели, DAO и Repository
 │   └── src/main/java/.../data/settings/ # DataStore и Android Keystore
-│   └── src/main/java/.../data/remote/   # Ktor-проверка сервера
+│   └── src/main/java/.../data/remote/   # Ktor-проверка и ручная синхронизация с сервером
 │   └── src/main/java/.../ui/    # Главный экран и ViewModel
 ├── server/                     # Go-модуль
 │   ├── cmd/reserve-server/     # Точка входа сервера
@@ -40,7 +40,7 @@ Reserve_Sin/
 - `docs/development.md` — ограничения текущей локальной разработки и будущие проверки.
 - `docs/decisions/` — решения, прямо закреплённые ТЗ.
 
-`androidApp` содержит Room-модели локальных данных, DAO, `Repository`, ViewModel и Compose-экраны главной страницы, категорий, создания операции и настроек подключения. DataStore и Android Keystore сохраняют параметры сервера и токен; Ktor проверяет Bearer-подключение и вручную синхронизирует категории, метки и операции по revision. Метки, история и фоновая синхронизация пока отсутствуют. `server` содержит SQLite-инициализацию с миграциями, Bearer-защищённый REST API, `GET /health`, проверяющий доступность базы, пакет `internal/logging` на стандартном `log/slog` и транзакционную команду импорта CSV. Версии Android-зависимостей централизованы в `gradle/libs.versions.toml`; зависимости Go-сервера — в `server/go.mod`.
+`androidApp` содержит Room-модели локальных данных, DAO, `Repository`, ViewModel и Compose-экраны главной страницы, категорий, создания операции и настроек подключения. DataStore и Android Keystore сохраняют параметры сервера и токен; Ktor проверяет Bearer-подключение и вручную синхронизирует категории, метки и операции по revision. Интерфейс меток, история, отмена операций и фоновая синхронизация через WorkManager пока отсутствуют. `server` содержит SQLite-инициализацию с миграциями, Bearer-защищённый REST API, `GET /health`, проверяющий доступность базы, пакет `internal/logging` на стандартном `log/slog` и транзакционную команду импорта CSV. Версии Android-зависимостей централизованы в `gradle/libs.versions.toml`; зависимости Go-сервера — в `server/go.mod`.
 
 ## Ожидаемые, но отсутствующие материалы
 
