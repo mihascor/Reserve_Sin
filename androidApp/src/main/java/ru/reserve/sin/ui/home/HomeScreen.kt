@@ -35,9 +35,10 @@ fun HomeRoute(
     viewModel: HomeViewModel,
     onManageCategories: () -> Unit,
     onAddOperation: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
-    HomeScreen(state, onManageCategories, onAddOperation)
+    HomeScreen(state, onManageCategories, onAddOperation, onOpenSettings)
 }
 
 @Composable
@@ -45,6 +46,7 @@ fun HomeScreen(
     state: HomeUiState,
     onManageCategories: () -> Unit,
     onAddOperation: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     if (state.isLoading) {
         Column(
@@ -82,6 +84,7 @@ fun HomeScreen(
                 Button(onClick = onAddOperation, enabled = state.categories.isNotEmpty()) {
                     Text("Добавить операцию")
                 }
+                Button(onClick = onOpenSettings) { Text("Настройки") }
             }
         }
         if (state.categories.isEmpty()) {

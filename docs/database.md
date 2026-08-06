@@ -2,18 +2,18 @@
 
 ## Статус и назначение
 
-Серверная SQLite-схема реализована миграцией `server/internal/database/migrations/001_initial_schema.sql`. При запуске сервер открывает базу, применяет все встроенные миграции и создаёт таблицу `schema_migrations`, поэтому миграции применяются однократно. Источником остатков остаются неотменённые операции; хранить остатки единственным источником данных запрещено.
+Серверная SQLite-схема реализована встроенными миграциями в `server/internal/database/migrations/`. При запуске сервер открывает базу, применяет все встроенные миграции и создаёт таблицу `schema_migrations`, поэтому миграции применяются однократно. Источником остатков остаются неотменённые операции; хранить остатки единственным источником данных запрещено.
 
 ## Сущности
 
 | Таблица | Назначение и ключевые поля |
 | --- | --- |
-| `categories` | Категории: `id`, `name`, `currency`, `target_amount_rub`, `sort_order`, `is_archived`, `is_visible_on_home`, даты создания и изменения, `revision`. |
+| `categories` | Категории: серверный `id`, nullable уникальный `client_category_id`, `name`, `currency`, `target_amount_rub`, `sort_order`, `is_archived`, `is_visible_on_home`, даты создания и изменения, `revision`. |
 | `transaction_labels` | Необязательные метки операций: `id`, `name`, `sort_order`, `is_archived`, даты создания и изменения, `revision`. |
 | `transactions` | Строки операций: `id`, `category_id`, `label_id`, `batch_id`, `amount_rub`, `comment`, `occurred_at`, даты создания и изменения, `client_operation_id`, `is_cancelled`, `revision`. |
 | `app_state` | Служебные пары `key`/`value`, в том числе текущая серверная revision. |
 
-`transactions.category_id` обязателен и связан с `categories`; `label_id` допускает отсутствие и связан с `transaction_labels`. `amount_rub` не должен быть равен нулю, а `client_operation_id` должен быть уникален. Строки одной групповой операции связываются общим `batch_id`.
+`transactions.category_id` обязателен и связан с `categories`; `label_id` допускает отсутствие и связан с `transaction_labels`. `amount_rub` не должен быть равен нулю, а `client_operation_id` должен быть уникален. Строки одной групповой операции связываются общим `batch_id`. `client_category_id` сопоставляет созданную офлайн Android-категорию с серверной категорией; миграция `002_category_client_identity.sql` создаёт для непустых значений уникальный индекс.
 
 Миграция задаёт внешние ключи с запретом физического удаления связанных категорий и меток, ограничения для пустых названий, RUB как единственной валюты, неотрицательной цели и булевых полей. Начальное значение `app_state.current_revision` — строка `0`. API повышает revision в той же транзакции при каждом создании, изменении или отмене и записывает её в изменённую сущность.
 

@@ -29,9 +29,9 @@ Go API реализован для категорий, меток, операц�
 
 ## Формат сущностей
 
-Категория содержит `id`, `name`, `currency` (`RUB`), `target_amount_rub` (`null` или целое число), `sort_order`, `is_archived`, `is_visible_on_home`, `created_at`, `updated_at`, `revision`. Метка содержит те же служебные поля без валюты, цели и видимости. Операция содержит поля из [модели БД](database.md), включая nullable `label_id`, `batch_id` и `comment`.
+Категория содержит серверный `id`, nullable `client_category_id`, `name`, `currency` (`RUB`), `target_amount_rub` (`null` или целое число), `sort_order`, `is_archived`, `is_visible_on_home`, `created_at`, `updated_at`, `revision`. Метка содержит те же служебные поля без валюты, цели и видимости. Операция содержит поля из [модели БД](database.md), включая nullable `label_id`, `batch_id` и `comment`.
 
-`POST /categories` принимает `name`, `target_amount_rub`, `sort_order` и необязательный `is_visible_on_home`. `PATCH /categories/{id}` принимает любое непустое подмножество этих полей, а также `is_archived`.
+`POST /categories` принимает `name`, `target_amount_rub`, `sort_order`, необязательные `is_visible_on_home` и `client_category_id`. При реализации отправки Android будет передавать в `client_category_id` свой локальный ID категории. Сервер уже хранит его уникально и при повторном запросе с тем же значением возвращает существующую категорию с `200`; новый запрос возвращает `201`. `PATCH /categories/{id}` принимает любое непустое подмножество изменяемых полей, а также `is_archived`; `client_category_id` после создания не изменяется.
 
 `POST /labels` принимает `name` и `sort_order`; `PATCH /labels/{id}` — любое непустое подмножество `name`, `sort_order`, `is_archived`.
 

@@ -45,7 +45,9 @@ func TestTransactionCreationIsIdempotentAndVisibleInChanges(t *testing.T) {
 	if second.Code != http.StatusOK {
 		t.Fatalf("idempotent transaction status = %d, body = %s", second.Code, second.Body.String())
 	}
-	var repeated struct { Idempotent bool `json:"idempotent"` }
+	var repeated struct {
+		Idempotent bool `json:"idempotent"`
+	}
 	if err := json.NewDecoder(second.Body).Decode(&repeated); err != nil {
 		t.Fatalf("decode repeated response: %v", err)
 	}
@@ -57,7 +59,10 @@ func TestTransactionCreationIsIdempotentAndVisibleInChanges(t *testing.T) {
 	if changes.Code != http.StatusOK {
 		t.Fatalf("changes status = %d, body = %s", changes.Code, changes.Body.String())
 	}
-	var result struct { Transactions []transaction `json:"transactions"`; Revision int64 `json:"revision"` }
+	var result struct {
+		Transactions []transaction `json:"transactions"`
+		Revision     int64         `json:"revision"`
+	}
 	if err := json.NewDecoder(changes.Body).Decode(&result); err != nil {
 		t.Fatalf("decode changes: %v", err)
 	}
@@ -66,13 +71,50 @@ func TestTransactionCreationIsIdempotentAndVisibleInChanges(t *testing.T) {
 	}
 }
 
+func TestCategoryCreationIsIdempotentByClientCategoryID(t *testing.T) {
+	router := testRouter(t)
+	body := `{"name":"Подушка","sort_order":0,"client_category_id":"android-category-1"}`
+	first := sendJSON(t, router, http.MethodPost, "/api/v1/categories", body)
+	if first.Code != http.StatusCreated {
+		t.Fatalf("first category status = %d, body = %s", first.Code, first.Body.String())
+	}
+	second := sendJSON(t, router, http.MethodPost, "/api/v1/categories", body)
+	if second.Code != http.StatusOK {
+		t.Fatalf("repeated category status = %d, body = %s", second.Code, second.Body.String())
+	}
+	var returnedCategory category
+	if err := json.NewDecoder(second.Body).Decode(&returnedCategory); err != nil {
+		t.Fatalf("decode category: %v", err)
+	}
+	if returnedCategory.ClientCategoryID == nil || *returnedCategory.ClientCategoryID != "android-category-1" {
+		t.Fatalf("unexpected client category ID: %+v", returnedCategory.ClientCategoryID)
+	}
+	response := sendJSON(t, router, http.MethodGet, "/api/v1/categories", "")
+	var list struct {
+		Categories []category `json:"categories"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&list); err != nil {
+		t.Fatalf("decode category list: %v", err)
+	}
+	if response.Code != http.StatusOK {
+		t.Fatalf("category list status = %d", response.Code)
+	}
+	if len(list.Categories) != 1 {
+		t.Fatalf("category count = %d, want 1", len(list.Categories))
+	}
+}
+
 func testRouter(t *testing.T) http.Handler {
 	t.Helper()
 	ctx := context.Background()
 	db, err := database.Open(ctx, ":memory:")
-	if err != nil { t.Fatalf("open database: %v", err) }
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
 	t.Cleanup(func() { _ = db.Close() })
-	if err := database.ApplyMigrations(ctx, db); err != nil { t.Fatalf("apply migrations: %v", err) }
+	if err := database.ApplyMigrations(ctx, db); err != nil {
+		t.Fatalf("apply migrations: %v", err)
+	}
 	return NewRouter(logging.New(logging.Config{Environment: logging.EnvironmentDevelopment, Level: slog.LevelError}, &bytes.Buffer{}), db, "test-token")
 }
 
