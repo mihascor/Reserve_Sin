@@ -179,6 +179,15 @@ interface HomeDao {
     @Update
     suspend fun updateCategory(category: CategoryEntity)
 
+    @Query(
+        """
+        DELETE FROM categories
+        WHERE id = :categoryId
+          AND NOT EXISTS (SELECT 1 FROM transactions WHERE categoryId = :categoryId)
+        """,
+    )
+    suspend fun deleteCategoryWithoutTransactions(categoryId: String): Int
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertTransactions(transactions: List<TransactionEntity>)
 

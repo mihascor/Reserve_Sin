@@ -60,6 +60,14 @@ class CategoriesViewModel(private val repository: ReserveRepository) : ViewModel
             _message.value = if (archived) "Категория архивирована" else "Категория восстановлена"
         }
     }
+
+    fun delete(category: CategoryEntity) {
+        viewModelScope.launch {
+            runCatching { repository.deleteCategory(category) }
+                .onSuccess { _message.value = "Категория удалена" }
+                .onFailure { _message.value = it.message ?: "Не удалось удалить категорию" }
+        }
+    }
 }
 
 class CategoriesViewModelFactory(private val repository: ReserveRepository) : ViewModelProvider.Factory {
@@ -74,7 +82,7 @@ class CategoriesViewModelFactory(private val repository: ReserveRepository) : Vi
 fun CategoriesRoute(viewModel: CategoriesViewModel, onBack: () -> Unit) {
     val categories by viewModel.categories.collectAsState(initial = emptyList())
     val message by viewModel.message.collectAsState()
-    CategoriesScreen(categories, message, viewModel::save, viewModel::setArchived, onBack)
+    CategoriesScreen(categories, message, viewModel::save, viewModel::setArchived, viewModel::delete, onBack)
 }
 
 @Composable
@@ -83,10 +91,12 @@ private fun CategoriesScreen(
     message: String?,
     onSave: (CategoryEntity?, String, String) -> Unit,
     onArchive: (CategoryEntity, Boolean) -> Unit,
+    onDelete: (CategoryEntity) -> Unit,
     onBack: () -> Unit,
 ) {
     var editor by remember { mutableStateOf<CategoryEntity?>(null) }
     var createMode by remember { mutableStateOf(false) }
+    var categoryToDelete by remember { mutableStateOf<CategoryEntity?>(null) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(20.dp),
@@ -108,8 +118,12 @@ private fun CategoriesScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { editor = category }) { Text("Изменить") }
                         OutlinedButton(onClick = { onArchive(category, !category.isArchived) }) {
-                            Text(if (category.isArchived) "Восстановить" else "Архивировать")
+                            Text(if (category.isArchived) "Восстановить" else "В архив")
                         }
+                    }
+                    if (category.remoteId == null) {
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(onClick = { categoryToDelete = category }) { Text("Удалить") }
                     }
                 }
             }
@@ -120,6 +134,17 @@ private fun CategoriesScreen(
             category = editor,
             onDismiss = { createMode = false; editor = null },
             onSave = { name, target -> onSave(editor, name, target); createMode = false; editor = null },
+        )
+    }
+    categoryToDelete?.let { category ->
+        AlertDialog(
+            onDismissRequest = { categoryToDelete = null },
+            title = { Text("Удалить категорию?") },
+            text = { Text("«${category.name}» будет удалена без возможности восстановления.") },
+            confirmButton = {
+                Button(onClick = { onDelete(category); categoryToDelete = null }) { Text("Удалить") }
+            },
+            dismissButton = { OutlinedButton(onClick = { categoryToDelete = null }) { Text("Отмена") } },
         )
     }
 }

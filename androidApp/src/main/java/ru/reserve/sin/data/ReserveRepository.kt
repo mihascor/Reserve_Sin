@@ -67,6 +67,15 @@ class ReserveRepository(database: ReserveDatabase) {
         homeDao.updateCategory(category.copy(isArchived = isArchived, updatedAt = nowUtc()))
     }
 
+    suspend fun deleteCategory(category: CategoryEntity) {
+        require(category.remoteId == null) {
+            "Синхронизированную категорию нельзя удалить. Переместите её в архив."
+        }
+        require(homeDao.deleteCategoryWithoutTransactions(category.id) == 1) {
+            "Категорию с операциями нельзя удалить. Переместите её в архив."
+        }
+    }
+
     suspend fun createTransactions(date: String, comment: String, rows: List<OperationLine>) {
         require(isDate(date)) { "Введите дату в формате ГГГГ-ММ-ДД" }
         require(rows.isNotEmpty()) { "Добавьте хотя бы одну строку" }
