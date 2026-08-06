@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +30,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
 import java.util.Locale
+import ru.reserve.sin.ui.theme.ReserveSinPrimaryButtonBackground
+import ru.reserve.sin.ui.theme.ReserveSinPrimaryButtonText
 
 @Composable
 fun HomeRoute(
@@ -80,15 +83,28 @@ fun HomeScreen(
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onManageCategories, modifier = Modifier.fillMaxWidth()) { Text("Категории") }
+                Button(
+                    onClick = onManageCategories,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = homeActionButtonColors(),
+                ) {
+                    Text("Категории", color = ReserveSinPrimaryButtonText)
+                }
                 Button(
                     onClick = onAddOperation,
                     enabled = state.categories.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth(),
+                    colors = homeActionButtonColors(),
                 ) {
-                    Text("Добавить операцию")
+                    Text("Добавить операцию", color = ReserveSinPrimaryButtonText)
                 }
-                Button(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) { Text("Настройки") }
+                Button(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = homeActionButtonColors(),
+                ) {
+                    Text("Настройки", color = ReserveSinPrimaryButtonText)
+                }
             }
         }
         if (state.categories.isEmpty()) {
@@ -107,6 +123,12 @@ fun HomeScreen(
         }
     }
 }
+
+@Composable
+private fun homeActionButtonColors() = ButtonDefaults.buttonColors(
+    containerColor = ReserveSinPrimaryButtonBackground,
+    contentColor = ReserveSinPrimaryButtonText,
+)
 
 @Composable
 private fun TotalBalanceCard(

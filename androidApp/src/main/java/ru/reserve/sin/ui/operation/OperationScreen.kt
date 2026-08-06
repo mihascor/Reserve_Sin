@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -41,6 +43,8 @@ import kotlinx.coroutines.launch
 import ru.reserve.sin.data.OperationLine
 import ru.reserve.sin.data.ReserveRepository
 import ru.reserve.sin.data.local.CategoryEntity
+import ru.reserve.sin.ui.theme.ReserveSinPrimaryButtonBackground
+import ru.reserve.sin.ui.theme.ReserveSinPrimaryButtonText
 
 data class OperationDraftRow(
     val categoryId: String = "",
@@ -176,9 +180,38 @@ private fun OperationLineEditor(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { onUpdate(row.copy(isIncome = true)) }, enabled = !row.isIncome) { Text("Пополнение") }
-                OutlinedButton(onClick = { onUpdate(row.copy(isIncome = false)) }, enabled = row.isIncome) { Text("Списание") }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (row.isIncome) {
+                    Button(
+                        onClick = {},
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ReserveSinPrimaryButtonBackground,
+                            contentColor = ReserveSinPrimaryButtonText,
+                        ),
+                    ) { Text("Пополнение", maxLines = 1) }
+                } else {
+                    OutlinedButton(onClick = { onUpdate(row.copy(isIncome = true)) }, modifier = Modifier.weight(1f)) {
+                        Text("Пополнение", maxLines = 1)
+                    }
+                }
+                if (row.isIncome) {
+                    OutlinedButton(onClick = { onUpdate(row.copy(isIncome = false)) }, modifier = Modifier.weight(1f)) {
+                        Text("Списание", maxLines = 1)
+                    }
+                } else {
+                    Button(
+                        onClick = {},
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ReserveSinPrimaryButtonBackground,
+                            contentColor = ReserveSinPrimaryButtonText,
+                        ),
+                    ) { Text("Списание", maxLines = 1) }
+                }
                 if (canRemove) OutlinedButton(onClick = onRemove) { Text("Удалить") }
             }
         }

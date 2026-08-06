@@ -5,9 +5,12 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
+val ReserveSinPrimaryButtonBackground = Color(0xFFD8B4FE)
+val ReserveSinPrimaryButtonText = Color(0xFF2D0B4E)
+
 private val ReserveSinDarkColors = darkColorScheme(
-    primary = Color(0xFFD8B4FE),
-    onPrimary = Color(0xFF2D0B4E),
+    primary = ReserveSinPrimaryButtonBackground,
+    onPrimary = ReserveSinPrimaryButtonText,
     primaryContainer = Color(0xFF493568),
     onPrimaryContainer = Color(0xFFF2E7FF),
     secondary = Color(0xFFD0C3DC),
