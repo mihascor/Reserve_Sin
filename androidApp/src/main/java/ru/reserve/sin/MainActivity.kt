@@ -27,6 +27,9 @@ import ru.reserve.sin.ui.operation.OperationViewModelFactory
 import ru.reserve.sin.ui.settings.SettingsRoute
 import ru.reserve.sin.ui.settings.SettingsViewModel
 import ru.reserve.sin.ui.settings.SettingsViewModelFactory
+import ru.reserve.sin.ui.history.HistoryRoute
+import ru.reserve.sin.ui.history.HistoryViewModel
+import ru.reserve.sin.ui.history.HistoryViewModelFactory
 import ru.reserve.sin.ui.theme.ReserveSinTheme
 
 class MainActivity : ComponentActivity() {
@@ -63,6 +66,12 @@ class MainActivity : ComponentActivity() {
                             )
                             SettingsRoute(settingsViewModel) { route = "home" }
                         }
+                        "history" -> {
+                            val historyViewModel: HistoryViewModel = viewModel(
+                                factory = HistoryViewModelFactory(repository),
+                            )
+                            HistoryRoute(historyViewModel) { route = "home" }
+                        }
                         else -> {
                             val homeViewModel: HomeViewModel = viewModel(
                                 factory = HomeViewModelFactory(repository),
@@ -71,6 +80,7 @@ class MainActivity : ComponentActivity() {
                                 viewModel = homeViewModel,
                                 onManageCategories = { route = "categories" },
                                 onAddOperation = { route = "operation" },
+                                onOpenHistory = { route = "history" },
                                 onOpenSettings = { route = "settings" },
                             )
                         }

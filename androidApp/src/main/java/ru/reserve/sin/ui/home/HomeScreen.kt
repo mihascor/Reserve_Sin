@@ -38,10 +38,11 @@ fun HomeRoute(
     viewModel: HomeViewModel,
     onManageCategories: () -> Unit,
     onAddOperation: () -> Unit,
+    onOpenHistory: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
-    HomeScreen(state, onManageCategories, onAddOperation, onOpenSettings)
+    HomeScreen(state, onManageCategories, onAddOperation, onOpenHistory, onOpenSettings)
 }
 
 @Composable
@@ -49,6 +50,7 @@ fun HomeScreen(
     state: HomeUiState,
     onManageCategories: () -> Unit,
     onAddOperation: () -> Unit,
+    onOpenHistory: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     if (state.isLoading) {
@@ -89,6 +91,7 @@ fun HomeScreen(
                     onClick = onAddOperation,
                     enabled = state.categories.isNotEmpty(),
                 )
+                HomeActionButton(text = "История", onClick = onOpenHistory)
                 HomeActionButton(text = "Настройки", onClick = onOpenSettings)
             }
         }

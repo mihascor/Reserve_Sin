@@ -16,6 +16,7 @@ import ru.reserve.sin.data.remote.ServerSyncClient
 import ru.reserve.sin.data.remote.RemoteChanges
 import ru.reserve.sin.data.local.LabelEntity
 import ru.reserve.sin.data.local.SyncMetadataEntity
+import ru.reserve.sin.data.local.HistoryTransactionRow
 
 class ReserveRepository(database: ReserveDatabase) {
     private val homeDao: HomeDao = database.homeDao()
@@ -31,6 +32,19 @@ class ReserveRepository(database: ReserveDatabase) {
     fun observeCategories(): Flow<List<CategoryEntity>> = homeDao.observeCategories()
 
     fun observeActiveCategories(): Flow<List<CategoryEntity>> = homeDao.observeActiveCategories()
+
+    fun observeLabels(): Flow<List<LabelEntity>> = homeDao.observeLabels()
+
+    fun observeHistoryTransactions(filter: HistoryFilter): Flow<List<HistoryTransactionRow>> =
+        homeDao.observeHistoryTransactions(
+            after = filter.after,
+            before = filter.before,
+            categoryId = filter.categoryId,
+            labelId = filter.labelId,
+            direction = filter.direction?.name,
+            includeCancelled = filter.includeCancelled,
+            onlyUnsynced = filter.onlyUnsynced,
+        )
 
     suspend fun createCategory(name: String, targetAmountRub: Long?) {
         val normalizedName = name.trim()
@@ -201,6 +215,18 @@ class ReserveRepository(database: ReserveDatabase) {
 }
 
 data class OperationLine(val categoryId: String, val amountRub: Long)
+
+data class HistoryFilter(
+    val after: String? = null,
+    val before: String? = null,
+    val categoryId: String? = null,
+    val labelId: String? = null,
+    val direction: HistoryDirection? = null,
+    val includeCancelled: Boolean = false,
+    val onlyUnsynced: Boolean = false,
+)
+
+enum class HistoryDirection { INCOME, EXPENSE }
 
 data class SyncResult(val categoriesSynced: Int, val transactionsSynced: Int, val changesReceived: Int)
 

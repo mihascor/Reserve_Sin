@@ -130,6 +130,20 @@ data class HomeCategoryRow(
     val hasPendingChanges: Boolean,
 )
 
+data class HistoryTransactionRow(
+    val id: String,
+    val categoryId: String,
+    val categoryName: String,
+    val labelId: String?,
+    val labelName: String?,
+    val batchId: String?,
+    val amountRub: Long,
+    val comment: String?,
+    val occurredAt: String,
+    val isCancelled: Boolean,
+    val syncStatus: SyncStatus,
+)
+
 @Dao
 interface HomeDao {
     @Query(
@@ -177,6 +191,46 @@ interface HomeDao {
 
     @Query("SELECT * FROM categories WHERE isArchived = 0 ORDER BY sortOrder, id")
     fun observeActiveCategories(): Flow<List<CategoryEntity>>
+
+    @Query("SELECT * FROM labels ORDER BY isArchived, sortOrder, id")
+    fun observeLabels(): Flow<List<LabelEntity>>
+
+    @Query(
+        """
+        SELECT
+            t.id,
+            t.categoryId,
+            c.name AS categoryName,
+            t.labelId,
+            l.name AS labelName,
+            t.batchId,
+            t.amountRub,
+            t.comment,
+            t.occurredAt,
+            t.isCancelled,
+            t.syncStatus
+        FROM transactions t
+        INNER JOIN categories c ON c.id = t.categoryId
+        LEFT JOIN labels l ON l.id = t.labelId
+        WHERE (:after IS NULL OR substr(t.occurredAt, 1, 10) >= :after)
+          AND (:before IS NULL OR substr(t.occurredAt, 1, 10) <= :before)
+          AND (:categoryId IS NULL OR t.categoryId = :categoryId)
+          AND (:labelId IS NULL OR t.labelId = :labelId)
+          AND (:direction IS NULL OR (:direction = 'INCOME' AND t.amountRub > 0) OR (:direction = 'EXPENSE' AND t.amountRub < 0))
+          AND (:includeCancelled = 1 OR t.isCancelled = 0)
+          AND (:onlyUnsynced = 0 OR t.syncStatus != 'SYNCED')
+        ORDER BY t.occurredAt DESC, t.createdAt DESC, t.id DESC
+        """,
+    )
+    fun observeHistoryTransactions(
+        after: String?,
+        before: String?,
+        categoryId: String?,
+        labelId: String?,
+        direction: String?,
+        includeCancelled: Boolean,
+        onlyUnsynced: Boolean,
+    ): Flow<List<HistoryTransactionRow>>
 
     @Query("SELECT MAX(sortOrder) FROM categories")
     suspend fun lastCategorySortOrder(): Long?
