@@ -35,4 +35,6 @@ Caddy защищает `/app/*` и `/app-api/*` Basic Auth для одного �
 
 Процесс Caddy получает следующие переменные только через отдельный env-файл, например `/etc/reserve-sin/caddy.env`: `RESERVE_SIN_WEB_BASIC_AUTH_USER`, `RESERVE_SIN_WEB_BASIC_AUTH_HASH` и `RESERVE_SIN_API_TOKEN`. Файл принадлежит `root`, читается группой системного пользователя Caddy и имеет режим `0640`; Caddy service override подключает его как `EnvironmentFile`. Значения не добавляются в репозиторий и не передаются браузеру. `RESERVE_SIN_API_TOKEN` в этом файле должен совпадать с токеном Go-сервиса, но `reserve.env` остаётся доступным только `root` и `reserve-sin`.
 
+Для локальной разработки предусмотрены [Caddyfile.local](../deploy/caddy/Caddyfile.local) и [local.env.example](../deploy/caddy/local.env.example). Реальный `deploy/caddy/local.env` игнорируется Git; он содержит только локальные случайные credentials и необязательно путь к безопасной копии SQLite.
+
 Требования к SQLite (`WAL`, `foreign_keys`, `busy_timeout`) приведены в [документации базы данных](database.md); порядок применения конфигурации — в [развертывании](deployment.md).

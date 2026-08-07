@@ -20,6 +20,7 @@ Reserve_Sin/
 │   └── internal/logging/       # Конфигурация slog и HTTP-логирование
 │   └── internal/importer/      # Разбор CSV и транзакционный импорт
 ├── deploy/                     # Материалы установки systemd, Caddy и резервного копирования
+│   └── caddy/Caddyfile.local    # Loopback-only Caddy для локальной проверки /app/
 ├── web/app/                     # Статическая read-only страница истории (HTML, CSS, Vanilla JS)
 ├── gradle/libs.versions.toml   # Версии Android-зависимостей
 ├── VERSION                     # Текущая версия проекта
@@ -42,7 +43,7 @@ Reserve_Sin/
 - `docs/development.md` — ограничения текущей локальной разработки и будущие проверки.
 - `docs/decisions/` — решения, прямо закреплённые ТЗ.
 
-`androidApp` содержит Room-модели локальных данных, DAO, `Repository`, ViewModel и Compose-экраны главной страницы, отдельной категории, категорий, создания операции, истории и настроек подключения. DataStore и Android Keystore сохраняют параметры сервера и токен; `data/export/HistoryCsv.kt` формирует и записывает CSV через системный URI. Ktor проверяет Bearer-подключение и синхронизирует категории, метки и операции по revision, включая отмены. `data/sync/SyncWork.kt` планирует и выполняет уникальную немедленную и периодическую фоновую синхронизацию WorkManager. `server` содержит SQLite-инициализацию с миграциями, Bearer-защищённый REST API, `GET /health`, проверяющий доступность базы, `GET /api/v1/web-history` для закрытого веба, пакет `internal/logging` на стандартном `log/slog` и транзакционную команду импорта CSV. `web/app` содержит статические файлы страницы `/app/`. Версии Android-зависимостей централизованы в `gradle/libs.versions.toml`; зависимости Go-сервера — в `server/go.mod`.
+`androidApp` содержит Room-модели локальных данных, DAO, `Repository`, ViewModel и Compose-экраны главной страницы, отдельной категории, категорий, создания операции, истории и настроек подключения. DataStore и Android Keystore сохраняют параметры сервера и токен; `data/export/HistoryCsv.kt` формирует и записывает CSV через системный URI. Ktor проверяет Bearer-подключение и синхронизирует категории, метки и операции по revision, включая отмены. `data/sync/SyncWork.kt` планирует и выполняет уникальную немедленную и периодическую фоновую синхронизацию WorkManager. `server` содержит SQLite-инициализацию с миграциями, Bearer-защищённый REST API, `GET /health`, проверяющий доступность базы, `GET /api/v1/web-history` для закрытого веба, пакет `internal/logging` на стандартном `log/slog` и транзакционную команду импорта CSV. `web/app` содержит статические файлы страницы `/app/`; `deploy/caddy/Caddyfile.local` — loopback-only контур их локального просмотра. Версии Android-зависимостей централизованы в `gradle/libs.versions.toml`; зависимости Go-сервера — в `server/go.mod`.
 
 ## Ожидаемые, но отсутствующие материалы
 

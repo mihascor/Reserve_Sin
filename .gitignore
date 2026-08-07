@@ -8,3 +8,4 @@ local.properties
 *.db
 *.db-shm
 *.db-wal
+deploy/caddy/local.env

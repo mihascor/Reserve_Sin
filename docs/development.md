@@ -15,6 +15,35 @@
 
 При первом запуске сервер автоматически применяет SQL-миграции из `server/internal/database/migrations`. Отдельной команды миграции пока нет: миграции выполняются перед началом обработки HTTP-запросов.
 
+## Локальный просмотр веб-интерфейса
+
+Для разработки страницы `/app/` используется Caddy, а не Node.js или отдельный веб-сервер. Локальный конфиг [deploy/caddy/Caddyfile.local](../deploy/caddy/Caddyfile.local) слушает только `127.0.0.1:8443`, повторяет Basic Auth и внутренний Bearer proxy production-схемы, а статические файлы берёт из `web/` при запуске из корня репозитория.
+
+1. Скопируйте [deploy/caddy/local.env.example](../deploy/caddy/local.env.example) в `deploy/caddy/local.env`. Этот файл игнорируется Git. Укажите один случайный локальный `RESERVE_SIN_API_TOKEN`, имя Basic Auth и bcrypt-хеш пароля. Хеш можно получить штатной интерактивной командой `caddy hash-password`: введите пароль, скопируйте единственную строку результата и вставьте её в `RESERVE_SIN_WEB_BASIC_AUTH_HASH` внутри одинарных кавычек. Токен Caddy и Go API должен совпадать. Не используйте production-токен или production-хеш.
+2. В первом терминале из корня репозитория экспортируйте значения из `deploy/caddy/local.env` и запустите API:
+
+```bash
+set -a
+. deploy/caddy/local.env
+set +a
+cd server && go run ./cmd/reserve-server
+```
+
+`RESERVE_SIN_DATABASE_PATH` по умолчанию указывает на отдельную базу в `/tmp`; чтобы увидеть историю, укажите путь к безопасной копии SQLite-базы.
+
+3. Во втором терминале из корня репозитория загрузите env-файл в shell, проверьте и запустите Caddy:
+
+```bash
+set -a
+. deploy/caddy/local.env
+set +a
+caddy validate --config deploy/caddy/Caddyfile.local
+caddy run --config deploy/caddy/Caddyfile.local --envfile deploy/caddy/local.env
+```
+4. Откройте `http://127.0.0.1:8443/app/` и введите локальные Basic Auth credentials. Браузер должен получать данные через `/app-api/api/v1/web-history`; токен не должен появляться в HTML, JavaScript или Network.
+
+Локальный HTTP допустим только потому, что listener привязан к loopback. Production-конфигурация продолжает работать по HTTPS. Не открывайте этот listener в сеть и не добавляйте `deploy/caddy/local.env` в Git.
+
 ## Сборка и установка на подключённый Android-телефон
 
 Подтверждённая локальная проверка выполняется в Linux из корня репозитория. Телефон подключается по USB с включённой отладкой; перед установкой нужно подтвердить подключение на устройстве. Для управления экраном используется:
