@@ -104,6 +104,29 @@ func TestCategoryCreationIsIdempotentByClientCategoryID(t *testing.T) {
 	}
 }
 
+func TestCategoryPatchClearsTargetAmount(t *testing.T) {
+	router := testRouter(t)
+	created := sendJSON(t, router, http.MethodPost, "/api/v1/categories", `{"name":"Подушка","target_amount_rub":100000,"sort_order":0}`)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create category status = %d, body = %s", created.Code, created.Body.String())
+	}
+	var category category
+	if err := json.NewDecoder(created.Body).Decode(&category); err != nil {
+		t.Fatalf("decode category: %v", err)
+	}
+
+	updated := sendJSON(t, router, http.MethodPatch, "/api/v1/categories/"+category.ID, `{"target_amount_rub":null}`)
+	if updated.Code != http.StatusOK {
+		t.Fatalf("update category status = %d, body = %s", updated.Code, updated.Body.String())
+	}
+	if err := json.NewDecoder(updated.Body).Decode(&category); err != nil {
+		t.Fatalf("decode updated category: %v", err)
+	}
+	if category.TargetAmountRub != nil {
+		t.Fatalf("target amount = %v, want nil", *category.TargetAmountRub)
+	}
+}
+
 func testRouter(t *testing.T) http.Handler {
 	t.Helper()
 	ctx := context.Background()

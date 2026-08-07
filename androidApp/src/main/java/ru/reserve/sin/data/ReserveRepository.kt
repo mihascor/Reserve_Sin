@@ -50,6 +50,7 @@ class ReserveRepository(database: ReserveDatabase) {
                 updatedAt = timestamp,
                 revision = 0,
                 remoteId = null,
+                syncStatus = SyncStatus.PENDING,
             ),
         )
     }
@@ -59,12 +60,12 @@ class ReserveRepository(database: ReserveDatabase) {
         require(normalizedName.isNotEmpty()) { "Введите название категории" }
         require(targetAmountRub == null || targetAmountRub >= 0) { "Цель не может быть отрицательной" }
         homeDao.updateCategory(
-            category.copy(name = normalizedName, targetAmountRub = targetAmountRub, updatedAt = nowUtc()),
+            category.copy(name = normalizedName, targetAmountRub = targetAmountRub, updatedAt = nowUtc(), syncStatus = SyncStatus.PENDING),
         )
     }
 
     suspend fun setCategoryArchived(category: CategoryEntity, isArchived: Boolean) {
-        homeDao.updateCategory(category.copy(isArchived = isArchived, updatedAt = nowUtc()))
+        homeDao.updateCategory(category.copy(isArchived = isArchived, updatedAt = nowUtc(), syncStatus = SyncStatus.PENDING))
     }
 
     suspend fun deleteCategory(category: CategoryEntity) {
@@ -112,9 +113,17 @@ class ReserveRepository(database: ReserveDatabase) {
         var transactionsSynced = 0
         try {
             homeDao.pendingCategories().forEach { category ->
-                val remote = client.createCategory(serverUrl, token, category)
-                homeDao.markCategorySynced(category.id, remote.id, remote.revision, remote.updatedAt)
-                categoriesSynced++
+                try {
+                    val remote = when (categorySyncAction(category)) {
+                        CategorySyncAction.CREATE -> client.createCategory(serverUrl, token, category)
+                        CategorySyncAction.UPDATE -> client.updateCategory(serverUrl, token, category)
+                    }
+                    homeDao.markCategorySynced(category.id, remote.id, remote.revision, remote.updatedAt)
+                    categoriesSynced++
+                } catch (error: Exception) {
+                    homeDao.markCategoryError(category.id)
+                    throw error
+                }
             }
             val pending = homeDao.pendingTransactions()
             val transactionGroups = pending.filter { it.batchId == null }.map { listOf(it) } +
@@ -164,6 +173,7 @@ class ReserveRepository(database: ReserveDatabase) {
                     updatedAt = remote.updatedAt,
                     revision = remote.revision,
                     remoteId = remote.id,
+                    syncStatus = SyncStatus.SYNCED,
                 ),
             )
         }
@@ -193,3 +203,8 @@ class ReserveRepository(database: ReserveDatabase) {
 data class OperationLine(val categoryId: String, val amountRub: Long)
 
 data class SyncResult(val categoriesSynced: Int, val transactionsSynced: Int, val changesReceived: Int)
+
+internal enum class CategorySyncAction { CREATE, UPDATE }
+
+internal fun categorySyncAction(category: CategoryEntity): CategorySyncAction =
+    if (category.remoteId == null) CategorySyncAction.CREATE else CategorySyncAction.UPDATE

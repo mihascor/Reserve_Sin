@@ -6,6 +6,7 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.patch
 import io.ktor.client.request.get
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -36,6 +37,24 @@ class ServerSyncClient {
             )
         }
         require(response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK) { "Не удалось отправить категорию" }
+        return response.body()
+    }
+
+    suspend fun updateCategory(serverUrl: String, token: String, category: CategoryEntity): RemoteCategory {
+        val remoteId = requireNotNull(category.remoteId) { "Не найдена серверная категория" }
+        val response = client.patch("$serverUrl/api/v1/categories/$remoteId") {
+            authenticated(token)
+            setBody(
+                CategoryPatchRequest(
+                    name = category.name,
+                    targetAmountRub = category.targetAmountRub,
+                    sortOrder = category.sortOrder,
+                    isArchived = category.isArchived,
+                    isVisibleOnHome = category.isVisibleOnHome,
+                ),
+            )
+        }
+        require(response.status == HttpStatusCode.OK) { "Не удалось обновить категорию" }
         return response.body()
     }
 
@@ -92,6 +111,15 @@ private data class CategoryRequest(
     @kotlinx.serialization.SerialName("sort_order") val sortOrder: Long,
     @kotlinx.serialization.SerialName("is_visible_on_home") val isVisibleOnHome: Boolean,
     @kotlinx.serialization.SerialName("client_category_id") val clientCategoryId: String,
+)
+
+@Serializable
+private data class CategoryPatchRequest(
+    val name: String,
+    @kotlinx.serialization.SerialName("target_amount_rub") val targetAmountRub: Long?,
+    @kotlinx.serialization.SerialName("sort_order") val sortOrder: Long,
+    @kotlinx.serialization.SerialName("is_archived") val isArchived: Boolean,
+    @kotlinx.serialization.SerialName("is_visible_on_home") val isVisibleOnHome: Boolean,
 )
 
 @Serializable

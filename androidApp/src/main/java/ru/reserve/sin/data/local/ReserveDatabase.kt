@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Database(
     entities = [CategoryEntity::class, LabelEntity::class, TransactionEntity::class, SyncMetadataEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 @TypeConverters(SyncStatusConverter::class)
@@ -31,13 +31,20 @@ abstract class ReserveDatabase : RoomDatabase() {
             context,
             ReserveDatabase::class.java,
             "reserve-sin.db",
-        ).addMigrations(MIGRATION_1_2).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE categories ADD COLUMN remoteId TEXT")
                 database.execSQL("ALTER TABLE labels ADD COLUMN remoteId TEXT")
                 database.execSQL("ALTER TABLE transactions ADD COLUMN remoteId TEXT")
+            }
+        }
+
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE categories ADD COLUMN syncStatus TEXT NOT NULL DEFAULT 'PENDING'")
+                database.execSQL("UPDATE categories SET syncStatus = CASE WHEN remoteId IS NULL THEN 'PENDING' ELSE 'SYNCED' END")
             }
         }
     }
@@ -56,6 +63,7 @@ data class CategoryEntity(
     val updatedAt: String,
     val revision: Long,
     val remoteId: String?,
+    val syncStatus: SyncStatus,
 )
 
 @Entity(tableName = "labels")
@@ -135,7 +143,7 @@ interface HomeDao {
                 SELECT 1
                 FROM transactions pending
                 WHERE pending.categoryId = c.id AND pending.syncStatus != 'SYNCED'
-            ) AS hasPendingChanges
+            ) OR c.syncStatus != 'SYNCED' AS hasPendingChanges
         FROM categories c
         LEFT JOIN transactions t ON t.categoryId = c.id
         WHERE c.isArchived = 0 AND c.isVisibleOnHome = 1
@@ -191,11 +199,14 @@ interface HomeDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertTransactions(transactions: List<TransactionEntity>)
 
-    @Query("SELECT * FROM categories WHERE remoteId IS NULL AND isArchived = 0 ORDER BY sortOrder, id")
+    @Query("SELECT * FROM categories WHERE syncStatus IN ('PENDING', 'ERROR') ORDER BY sortOrder, id")
     suspend fun pendingCategories(): List<CategoryEntity>
 
-    @Query("UPDATE categories SET remoteId = :remoteId, revision = :revision, updatedAt = :updatedAt WHERE id = :localId")
+    @Query("UPDATE categories SET remoteId = :remoteId, revision = :revision, syncStatus = 'SYNCED', updatedAt = :updatedAt WHERE id = :localId")
     suspend fun markCategorySynced(localId: String, remoteId: String, revision: Long, updatedAt: String)
+
+    @Query("UPDATE categories SET syncStatus = 'ERROR' WHERE id = :localId")
+    suspend fun markCategoryError(localId: String)
 
     @Query("SELECT * FROM transactions WHERE syncStatus IN ('PENDING', 'ERROR') ORDER BY occurredAt, id")
     suspend fun pendingTransactions(): List<TransactionEntity>

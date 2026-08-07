@@ -8,13 +8,14 @@ plugins {
 android {
     namespace = "ru.reserve.sin"
     compileSdk = 37
+    val semanticVersion = rootProject.file("VERSION").readText().trim()
 
     defaultConfig {
         applicationId = "ru.reserve.sin"
         minSdk = 23
         targetSdk = 36
-        versionCode = 1
-        versionName = rootProject.file("VERSION").readText().trim()
+        versionCode = semanticVersion.split(".").fold(0) { code, segment -> code * 1000 + segment.toInt() }
+        versionName = semanticVersion
     }
 
     buildFeatures {

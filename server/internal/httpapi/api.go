@@ -75,11 +75,30 @@ type categoryInput struct {
 }
 
 type categoryPatch struct {
-	Name            *string `json:"name"`
-	TargetAmountRub *int64  `json:"target_amount_rub"`
-	SortOrder       *int64  `json:"sort_order"`
-	IsArchived      *bool   `json:"is_archived"`
-	IsVisibleOnHome *bool   `json:"is_visible_on_home"`
+	Name            *string       `json:"name"`
+	TargetAmountRub nullableInt64 `json:"target_amount_rub"`
+	SortOrder       *int64        `json:"sort_order"`
+	IsArchived      *bool         `json:"is_archived"`
+	IsVisibleOnHome *bool         `json:"is_visible_on_home"`
+}
+
+type nullableInt64 struct {
+	Set   bool
+	Value *int64
+}
+
+func (value *nullableInt64) UnmarshalJSON(data []byte) error {
+	value.Set = true
+	if string(data) == "null" {
+		value.Value = nil
+		return nil
+	}
+	var parsed int64
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return err
+	}
+	value.Value = &parsed
+	return nil
 }
 
 type labelInput struct {
@@ -323,11 +342,11 @@ func categoryUpdate(db *sql.DB) http.HandlerFunc {
 		if !decodeJSON(w, r, &input) {
 			return
 		}
-		if input.Name == nil && input.TargetAmountRub == nil && input.SortOrder == nil && input.IsArchived == nil && input.IsVisibleOnHome == nil {
+		if input.Name == nil && !input.TargetAmountRub.Set && input.SortOrder == nil && input.IsArchived == nil && input.IsVisibleOnHome == nil {
 			writeError(w, 400, "validation_error", "at least one field is required", nil)
 			return
 		}
-		if input.Name != nil && !validName(*input.Name) || input.TargetAmountRub != nil && *input.TargetAmountRub < 0 {
+		if input.Name != nil && !validName(*input.Name) || input.TargetAmountRub.Set && input.TargetAmountRub.Value != nil && *input.TargetAmountRub.Value < 0 {
 			writeError(w, 400, "validation_error", "category fields are invalid", nil)
 			return
 		}
@@ -349,8 +368,8 @@ func categoryUpdate(db *sql.DB) http.HandlerFunc {
 		if input.Name != nil {
 			item.Name = strings.TrimSpace(*input.Name)
 		}
-		if input.TargetAmountRub != nil {
-			item.TargetAmountRub = input.TargetAmountRub
+		if input.TargetAmountRub.Set {
+			item.TargetAmountRub = input.TargetAmountRub.Value
 		}
 		if input.SortOrder != nil {
 			item.SortOrder = *input.SortOrder
