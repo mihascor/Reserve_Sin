@@ -15,6 +15,7 @@ import ru.reserve.sin.data.ReserveRepository
 import ru.reserve.sin.data.local.ReserveDatabase
 import ru.reserve.sin.data.remote.ServerConnectionChecker
 import ru.reserve.sin.data.settings.ServerSettingsRepository
+import ru.reserve.sin.data.sync.SyncWorkScheduler
 import ru.reserve.sin.ui.home.HomeRoute
 import ru.reserve.sin.ui.home.HomeViewModel
 import ru.reserve.sin.ui.home.HomeViewModelFactory
@@ -46,6 +47,7 @@ class MainActivity : ComponentActivity() {
         }
         val repository = ReserveRepository(ReserveDatabase.create(applicationContext))
         val settingsRepository = ServerSettingsRepository(applicationContext)
+        SyncWorkScheduler.schedule(applicationContext)
         setContent {
             ReserveSinTheme {
                 Surface {
