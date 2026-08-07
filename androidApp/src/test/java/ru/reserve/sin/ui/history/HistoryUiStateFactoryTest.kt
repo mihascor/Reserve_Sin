@@ -30,7 +30,7 @@ class HistoryUiStateFactoryTest {
         val group = historyGroups(
             listOf(
                 transaction(id = "one", batchId = "batch", amountRub = 1_000, isCancelled = true),
-                transaction(id = "two", batchId = "batch", amountRub = -100, isCancelled = false, syncStatus = SyncStatus.PENDING),
+                transaction(id = "two", batchId = "batch", amountRub = -100, isCancelled = false, syncStatus = SyncStatus.CANCEL_PENDING),
             ),
         ).single()
 

@@ -262,8 +262,11 @@ interface HomeDao {
     @Query("UPDATE categories SET syncStatus = 'ERROR' WHERE id = :localId")
     suspend fun markCategoryError(localId: String)
 
-    @Query("SELECT * FROM transactions WHERE syncStatus IN ('PENDING', 'ERROR') ORDER BY occurredAt, id")
+    @Query("SELECT * FROM transactions WHERE syncStatus IN ('PENDING', 'ERROR') AND isCancelled = 0 ORDER BY occurredAt, id")
     suspend fun pendingTransactions(): List<TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE syncStatus = 'CANCEL_PENDING' AND remoteId IS NOT NULL ORDER BY occurredAt, id")
+    suspend fun pendingCancellations(): List<TransactionEntity>
 
     @Query("SELECT remoteId FROM categories WHERE id = :localId")
     suspend fun categoryRemoteId(localId: String): String?
@@ -273,6 +276,15 @@ interface HomeDao {
 
     @Query("UPDATE transactions SET syncStatus = 'ERROR' WHERE clientOperationId IN (:clientOperationIds)")
     suspend fun markTransactionsError(clientOperationIds: List<String>)
+
+    @Query("UPDATE transactions SET isCancelled = 1, syncStatus = CASE WHEN remoteId IS NULL THEN 'SYNCED' ELSE 'CANCEL_PENDING' END, updatedAt = :updatedAt WHERE id IN (:transactionIds) AND isCancelled = 0")
+    suspend fun cancelTransactions(transactionIds: List<String>, updatedAt: String): Int
+
+    @Query("UPDATE transactions SET syncStatus = 'SYNCED', revision = :revision, updatedAt = :updatedAt WHERE id = :localId")
+    suspend fun markCancellationSynced(localId: String, revision: Long, updatedAt: String)
+
+    @Query("UPDATE transactions SET syncStatus = 'ERROR' WHERE id IN (:transactionIds)")
+    suspend fun markCancellationsError(transactionIds: List<String>)
 
     @Query("SELECT * FROM categories WHERE remoteId = :remoteId LIMIT 1")
     suspend fun categoryByRemoteId(remoteId: String): CategoryEntity?

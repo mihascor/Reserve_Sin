@@ -121,6 +121,11 @@ class ReserveRepository(database: ReserveDatabase) {
         )
     }
 
+    suspend fun cancelTransactions(transactionIds: List<String>) {
+        require(transactionIds.isNotEmpty()) { "Не найдены операции для отмены" }
+        require(homeDao.cancelTransactions(transactionIds, nowUtc()) > 0) { "Операция уже отменена" }
+    }
+
     suspend fun sync(serverUrl: String, token: String): SyncResult {
         val client = ServerSyncClient()
         var categoriesSynced = 0
@@ -136,6 +141,16 @@ class ReserveRepository(database: ReserveDatabase) {
                     categoriesSynced++
                 } catch (error: Exception) {
                     homeDao.markCategoryError(category.id)
+                    throw error
+                }
+            }
+            homeDao.pendingCancellations().forEach { transaction ->
+                try {
+                    val remote = client.cancelTransaction(serverUrl, token, requireNotNull(transaction.remoteId))
+                    homeDao.markCancellationSynced(transaction.id, remote.revision, remote.updatedAt)
+                    transactionsSynced++
+                } catch (error: Exception) {
+                    homeDao.markCancellationsError(listOf(transaction.id))
                     throw error
                 }
             }

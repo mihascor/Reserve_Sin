@@ -17,6 +17,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -41,6 +43,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import ru.reserve.sin.data.HistoryDirection
 import ru.reserve.sin.data.HistoryFilter
 import ru.reserve.sin.data.ReserveRepository
@@ -70,6 +73,8 @@ data class HistoryUiState(
 
 class HistoryViewModel(private val repository: ReserveRepository) : ViewModel() {
     private val filter = MutableStateFlow(HistoryFilter())
+    private val _message = MutableStateFlow<String?>(null)
+    val message: StateFlow<String?> = _message.asStateFlow()
     private val groups = filter.flatMapLatest { currentFilter ->
         repository.observeHistoryTransactions(currentFilter)
     }
@@ -90,6 +95,14 @@ class HistoryViewModel(private val repository: ReserveRepository) : ViewModel() 
 
     fun updateFilter(transform: (HistoryFilter) -> HistoryFilter) {
         filter.value = transform(filter.value)
+    }
+
+    fun cancel(group: HistoryGroup) {
+        viewModelScope.launch {
+            runCatching { repository.cancelTransactions(group.transactions.map { it.id }) }
+                .onSuccess { _message.value = "Операция отменена локально и ожидает синхронизации" }
+                .onFailure { _message.value = it.message ?: "Не удалось отменить операцию" }
+        }
     }
 }
 
@@ -115,18 +128,21 @@ internal fun historyGroups(transactions: List<HistoryTransactionRow>): List<Hist
 @Composable
 fun HistoryRoute(viewModel: HistoryViewModel, onBack: () -> Unit) {
     val state by viewModel.uiState.collectAsState()
-    HistoryScreen(state, viewModel::updateFilter, onBack)
+    val message by viewModel.message.collectAsState()
+    HistoryScreen(state, message, viewModel::updateFilter, viewModel::cancel, onBack)
 }
 
 @Composable
 private fun HistoryScreen(
     state: HistoryUiState,
+    message: String?,
     onUpdateFilter: ((HistoryFilter) -> HistoryFilter) -> Unit,
+    onCancel: (HistoryGroup) -> Unit,
     onBack: () -> Unit,
 ) {
-    var selectedGroup by remember { mutableStateOf<HistoryGroup?>(null) }
-    selectedGroup?.let { group ->
-        HistoryDetailsScreen(group, onBack = { selectedGroup = null })
+    var selectedGroupId by remember { mutableStateOf<String?>(null) }
+    state.groups.firstOrNull { it.id == selectedGroupId }?.let { group ->
+        HistoryDetailsScreen(group, message, onCancel, onBack = { selectedGroupId = null })
         return
     }
     LazyColumn(
@@ -141,6 +157,7 @@ private fun HistoryScreen(
             }
         }
         item { HistoryFilters(state, onUpdateFilter) }
+        message?.let { item { Text(it, color = MaterialTheme.colorScheme.primary) } }
         if (state.groups.isEmpty()) {
             item {
                 Card(modifier = Modifier.fillMaxWidth()) {
@@ -149,7 +166,7 @@ private fun HistoryScreen(
             }
         } else {
             items(state.groups, key = { it.id }) { group ->
-                HistoryGroupCard(group, onClick = { selectedGroup = group })
+                HistoryGroupCard(group, onClick = { selectedGroupId = group.id })
             }
         }
     }
@@ -255,7 +272,29 @@ private fun HistoryGroupCard(group: HistoryGroup, onClick: () -> Unit) {
 }
 
 @Composable
-private fun HistoryDetailsScreen(group: HistoryGroup, onBack: () -> Unit) {
+private fun HistoryDetailsScreen(
+    group: HistoryGroup,
+    message: String?,
+    onCancel: (HistoryGroup) -> Unit,
+    onBack: () -> Unit,
+) {
+    var showCancelConfirmation by remember { mutableStateOf(false) }
+    if (showCancelConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showCancelConfirmation = false },
+            title = { Text("Отменить операцию?") },
+            text = {
+                Text(
+                    if (group.transactions.size == 1) "Операция перестанет участвовать в расчётах."
+                    else "Будут отменены все ${group.transactions.size} строк(и) этой групповой операции.",
+                )
+            },
+            confirmButton = {
+                Button(onClick = { onCancel(group); showCancelConfirmation = false }) { Text("Отменить") }
+            },
+            dismissButton = { OutlinedButton(onClick = { showCancelConfirmation = false }) { Text("Не отменять") } },
+        )
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(20.dp),
@@ -277,6 +316,21 @@ private fun HistoryDetailsScreen(group: HistoryGroup, onBack: () -> Unit) {
                     if (group.isCancelled) Text("Операция отменена", color = MaterialTheme.colorScheme.error)
                     else if (group.hasUnsyncedChanges) Text("Есть не синхронизированные изменения", color = MaterialTheme.colorScheme.primary)
                 }
+            }
+        }
+        message?.let { item { Text(it, color = MaterialTheme.colorScheme.primary) } }
+        if (!group.isCancelled) {
+            item {
+                Button(onClick = { showCancelConfirmation = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Отменить операцию")
+                }
+            }
+        } else {
+            item {
+                Text(
+                    "Для исправления создайте новую операцию с правильными значениями: отменённая запись остаётся в истории.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
         }
         items(group.transactions, key = { it.id }) { transaction ->

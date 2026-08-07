@@ -96,6 +96,12 @@ class ServerSyncClient {
         return response.body<BatchResponse>().transactions
     }
 
+    suspend fun cancelTransaction(serverUrl: String, token: String, remoteId: String): RemoteTransaction {
+        val response = client.post("$serverUrl/api/v1/transactions/$remoteId/cancel") { authenticated(token) }
+        require(response.status == HttpStatusCode.OK) { "Не удалось отменить операцию" }
+        return response.body()
+    }
+
     fun close() = client.close()
 
     private fun io.ktor.client.request.HttpRequestBuilder.authenticated(token: String) {
