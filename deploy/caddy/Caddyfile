@@ -1,4 +1,40 @@
 https://reserve-sin.duckdns.org:8443 {
 	encode zstd gzip
-	reverse_proxy 127.0.0.1:8080
+
+	@app path /app/*
+	handle @app {
+		basic_auth {
+			{$RESERVE_SIN_WEB_BASIC_AUTH_USER} {$RESERVE_SIN_WEB_BASIC_AUTH_HASH}
+		}
+		header {
+			Content-Security-Policy "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+			X-Content-Type-Options "nosniff"
+			Referrer-Policy "no-referrer"
+			X-Frame-Options "DENY"
+			Cache-Control "no-store"
+		}
+		root * /opt/reserve-sin/web
+		file_server
+	}
+
+	@app_api path /app-api/*
+	handle_path @app_api {
+		basic_auth {
+			{$RESERVE_SIN_WEB_BASIC_AUTH_USER} {$RESERVE_SIN_WEB_BASIC_AUTH_HASH}
+		}
+		header {
+			X-Content-Type-Options "nosniff"
+			Referrer-Policy "no-referrer"
+			X-Frame-Options "DENY"
+			Cache-Control "no-store"
+		}
+		reverse_proxy 127.0.0.1:8080 {
+			header_up -Authorization
+			header_up Authorization "Bearer {$RESERVE_SIN_API_TOKEN}"
+		}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:8080
+	}
 }

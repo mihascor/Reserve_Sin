@@ -66,6 +66,20 @@ type transaction struct {
 	Revision          int64   `json:"revision"`
 }
 
+// webHistoryTransaction is the deliberately small read model used by the
+// protected web history. It is separate from transaction so Android's
+// /transactions contract remains unchanged.
+type webHistoryTransaction struct {
+	ID           string  `json:"id"`
+	OccurredAt   string  `json:"occurred_at"`
+	CategoryName string  `json:"category_name"`
+	LabelName    *string `json:"label_name"`
+	Comment      *string `json:"comment"`
+	IncomeRub    *int64  `json:"income_rub"`
+	ExpenseRub   *int64  `json:"expense_rub"`
+	IsBatch      bool    `json:"is_batch"`
+}
+
 type categoryInput struct {
 	ClientCategoryID *string `json:"client_category_id"`
 	Name             string  `json:"name"`
@@ -831,6 +845,88 @@ func transactionsList(db *sql.DB) http.HandlerFunc {
 			nextCursor = &items[len(items)-1].ID
 		}
 		writeJSON(w, 200, map[string]any{"transactions": items, "next_cursor": nextCursor})
+	}
+}
+
+func webHistoryList(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		limit := 50
+		if text := r.URL.Query().Get("limit"); text != "" {
+			parsed, err := strconv.Atoi(text)
+			if err != nil || parsed < 1 || parsed > 100 {
+				writeError(w, http.StatusBadRequest, "validation_error", "limit must be between 1 and 100", nil)
+				return
+			}
+			limit = parsed
+		}
+
+		where := []string{"t.is_cancelled=0", "c.is_archived=0"}
+		args := []any{}
+		if cursor := r.URL.Query().Get("cursor"); cursor != "" {
+			var occurredAt string
+			err := db.QueryRowContext(r.Context(), `SELECT t.occurred_at
+				FROM transactions t JOIN categories c ON c.id=t.category_id
+				WHERE t.id=? AND t.is_cancelled=0 AND c.is_archived=0`, cursor).Scan(&occurredAt)
+			if errors.Is(err, sql.ErrNoRows) {
+				writeError(w, http.StatusBadRequest, "validation_error", "invalid cursor", nil)
+				return
+			}
+			if err != nil {
+				internalError(w)
+				return
+			}
+			where = append(where, "(t.occurred_at < ? OR (t.occurred_at = ? AND t.id < ?))")
+			args = append(args, occurredAt, occurredAt, cursor)
+		}
+
+		args = append(args, limit+1)
+		rows, err := db.QueryContext(r.Context(), `SELECT t.id,t.occurred_at,c.name,l.name,t.comment,t.amount_rub,t.batch_id
+			FROM transactions t
+			JOIN categories c ON c.id=t.category_id
+			LEFT JOIN transaction_labels l ON l.id=t.label_id
+			WHERE `+strings.Join(where, " AND ")+`
+			ORDER BY t.occurred_at DESC,t.id DESC LIMIT ?`, args...)
+		if err != nil {
+			internalError(w)
+			return
+		}
+		defer rows.Close()
+
+		items := make([]webHistoryTransaction, 0, limit)
+		for rows.Next() {
+			var item webHistoryTransaction
+			var labelName, comment, batchID sql.NullString
+			var amount int64
+			if err := rows.Scan(&item.ID, &item.OccurredAt, &item.CategoryName, &labelName, &comment, &amount, &batchID); err != nil {
+				internalError(w)
+				return
+			}
+			if labelName.Valid {
+				item.LabelName = &labelName.String
+			}
+			if comment.Valid {
+				item.Comment = &comment.String
+			}
+			item.IsBatch = batchID.Valid
+			if amount > 0 {
+				item.IncomeRub = &amount
+			} else {
+				expense := -amount
+				item.ExpenseRub = &expense
+			}
+			items = append(items, item)
+		}
+		if err := rows.Err(); err != nil {
+			internalError(w)
+			return
+		}
+
+		var nextCursor *string
+		if len(items) > limit {
+			nextCursor = &items[limit-1].ID
+			items = items[:limit]
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"transactions": items, "next_cursor": nextCursor})
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"reserve-sin/server/internal/database"
@@ -23,6 +24,90 @@ func TestAPIRequiresBearerToken(t *testing.T) {
 	if response.Header().Get("WWW-Authenticate") != "Bearer" {
 		t.Fatal("missing Bearer authentication challenge")
 	}
+}
+
+func TestWebHistoryRequiresBearerToken(t *testing.T) {
+	router := testRouter(t)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/web-history", nil))
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestWebHistoryFiltersAndPaginates(t *testing.T) {
+	router := testRouter(t)
+	active := createCategoryForTest(t, router, "Активная")
+	archived := createCategoryForTest(t, router, "Архив")
+	createTransactionForTest(t, router, archived.ID, "2026-08-07T10:00:00Z", 300, "web-history-3")
+	archiveCategory := sendJSON(t, router, http.MethodPatch, "/api/v1/categories/"+archived.ID, `{"is_archived":true}`)
+	if archiveCategory.Code != http.StatusOK {
+		t.Fatalf("archive category status = %d, body = %s", archiveCategory.Code, archiveCategory.Body.String())
+	}
+
+	oldest := createTransactionForTest(t, router, active.ID, "2026-08-05T10:00:00Z", 100, "web-history-1")
+	_ = oldest
+	cancelled := createTransactionForTest(t, router, active.ID, "2026-08-06T10:00:00Z", -200, "web-history-2")
+	cancel := sendJSON(t, router, http.MethodPost, "/api/v1/transactions/"+cancelled.ID+"/cancel", "")
+	if cancel.Code != http.StatusOK {
+		t.Fatalf("cancel transaction status = %d, body = %s", cancel.Code, cancel.Body.String())
+	}
+	newest := createTransactionForTest(t, router, active.ID, "2026-08-08T10:00:00Z", -400, "web-history-4")
+
+	first := sendJSON(t, router, http.MethodGet, "/api/v1/web-history?limit=1", "")
+	if first.Code != http.StatusOK {
+		t.Fatalf("first page status = %d, body = %s", first.Code, first.Body.String())
+	}
+	var page struct {
+		Transactions []webHistoryTransaction `json:"transactions"`
+		NextCursor   *string                 `json:"next_cursor"`
+	}
+	if err := json.NewDecoder(first.Body).Decode(&page); err != nil {
+		t.Fatalf("decode first page: %v", err)
+	}
+	if len(page.Transactions) != 1 || page.Transactions[0].ID != newest.ID || page.Transactions[0].ExpenseRub == nil || *page.Transactions[0].ExpenseRub != 400 || page.NextCursor == nil {
+		t.Fatalf("unexpected first page: %+v", page)
+	}
+
+	second := sendJSON(t, router, http.MethodGet, "/api/v1/web-history?limit=1&cursor="+*page.NextCursor, "")
+	if second.Code != http.StatusOK {
+		t.Fatalf("second page status = %d, body = %s", second.Code, second.Body.String())
+	}
+	if err := json.NewDecoder(second.Body).Decode(&page); err != nil {
+		t.Fatalf("decode second page: %v", err)
+	}
+	if len(page.Transactions) != 1 || page.Transactions[0].ID != oldest.ID || page.Transactions[0].IncomeRub == nil || *page.Transactions[0].IncomeRub != 100 || page.NextCursor != nil {
+		t.Fatalf("unexpected second page: %+v", page)
+	}
+}
+
+func createCategoryForTest(t *testing.T, router http.Handler, name string) category {
+	t.Helper()
+	response := sendJSON(t, router, http.MethodPost, "/api/v1/categories", `{"name":"`+name+`","sort_order":0}`)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("create category status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var item category
+	if err := json.NewDecoder(response.Body).Decode(&item); err != nil {
+		t.Fatalf("decode category: %v", err)
+	}
+	return item
+}
+
+func createTransactionForTest(t *testing.T, router http.Handler, categoryID, occurredAt string, amount int64, clientID string) transaction {
+	t.Helper()
+	body := `{"category_id":"` + categoryID + `","amount_rub":` + strconv.FormatInt(amount, 10) + `,"occurred_at":"` + occurredAt + `","client_operation_id":"` + clientID + `"}`
+	response := sendJSON(t, router, http.MethodPost, "/api/v1/transactions", body)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("create transaction status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var result struct {
+		Transaction transaction `json:"transaction"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
+		t.Fatalf("decode transaction: %v", err)
+	}
+	return result.Transaction
 }
 
 func TestTransactionCreationIsIdempotentAndVisibleInChanges(t *testing.T) {

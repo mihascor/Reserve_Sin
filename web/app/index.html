@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Reserve_Sin — история</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <header class="page-header">
+      <p class="eyebrow">Reserve_Sin</p>
+      <h1>Таблица — история</h1>
+    </header>
+
+    <p id="status" class="status" role="status" aria-live="polite">Загрузка истории…</p>
+    <div id="error" class="error" role="alert" hidden>
+      <p>Не удалось загрузить историю.</p>
+      <button id="retry" type="button">Повторить</button>
+    </div>
+    <p id="empty" class="empty" hidden>В истории пока нет операций.</p>
+
+    <div id="table-wrap" class="table-wrap" hidden tabindex="0" aria-label="Таблица истории операций">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Дата операции</th>
+            <th scope="col">Категория</th>
+            <th scope="col">Метка</th>
+            <th scope="col">Комментарий</th>
+            <th scope="col" class="amount">Приход</th>
+            <th scope="col" class="amount">Расход</th>
+            <th scope="col">Групповая операция</th>
+          </tr>
+        </thead>
+        <tbody id="transactions"></tbody>
+      </table>
+    </div>
+    <div class="actions">
+      <button id="load-more" type="button" hidden>Загрузить ещё</button>
+    </div>
+  </main>
+  <script src="app.js" defer></script>
+</body>
+</html>

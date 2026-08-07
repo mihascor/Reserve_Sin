@@ -23,6 +23,7 @@ func NewRouter(logger *slog.Logger, db *sql.DB, apiToken string) http.Handler {
 		api.Post("/labels", labelCreate(db))
 		api.Patch("/labels/{id}", labelUpdate(db))
 		api.Get("/transactions", transactionsList(db))
+		api.Get("/web-history", webHistoryList(db))
 		api.Post("/transactions", transactionCreate(db))
 		api.Post("/transaction-batches", transactionBatchCreate(db))
 		api.Patch("/transactions/{id}", transactionUpdateNotSupported)
