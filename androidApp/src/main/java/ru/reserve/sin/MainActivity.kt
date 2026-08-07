@@ -31,6 +31,9 @@ import ru.reserve.sin.ui.history.HistoryRoute
 import ru.reserve.sin.ui.history.HistoryViewModel
 import ru.reserve.sin.ui.history.HistoryViewModelFactory
 import ru.reserve.sin.ui.theme.ReserveSinTheme
+import ru.reserve.sin.ui.labels.LabelsRoute
+import ru.reserve.sin.ui.labels.LabelsViewModel
+import ru.reserve.sin.ui.labels.LabelsViewModelFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,7 +67,7 @@ class MainActivity : ComponentActivity() {
                             val settingsViewModel: SettingsViewModel = viewModel(
                                 factory = SettingsViewModelFactory(settingsRepository, ServerConnectionChecker(), repository),
                             )
-                            SettingsRoute(settingsViewModel) { route = "home" }
+                            SettingsRoute(settingsViewModel, { route = "home" }, { route = "labels" })
                         }
                         "history" -> {
                             val historyViewModel: HistoryViewModel = viewModel(
@@ -72,6 +75,7 @@ class MainActivity : ComponentActivity() {
                             )
                             HistoryRoute(historyViewModel) { route = "home" }
                         }
+                        "labels" -> { val labelsViewModel: LabelsViewModel = viewModel(factory = LabelsViewModelFactory(repository)); LabelsRoute(labelsViewModel) { route = "settings" } }
                         else -> {
                             val homeViewModel: HomeViewModel = viewModel(
                                 factory = HomeViewModelFactory(repository),

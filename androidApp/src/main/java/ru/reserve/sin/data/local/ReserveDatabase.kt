@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Database(
     entities = [CategoryEntity::class, LabelEntity::class, TransactionEntity::class, SyncMetadataEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 @TypeConverters(SyncStatusConverter::class)
@@ -31,7 +31,7 @@ abstract class ReserveDatabase : RoomDatabase() {
             context,
             ReserveDatabase::class.java,
             "reserve-sin.db",
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -45,6 +45,12 @@ abstract class ReserveDatabase : RoomDatabase() {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE categories ADD COLUMN syncStatus TEXT NOT NULL DEFAULT 'PENDING'")
                 database.execSQL("UPDATE categories SET syncStatus = CASE WHEN remoteId IS NULL THEN 'PENDING' ELSE 'SYNCED' END")
+            }
+        }
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE labels ADD COLUMN syncStatus TEXT NOT NULL DEFAULT 'PENDING'")
+                database.execSQL("UPDATE labels SET syncStatus = CASE WHEN remoteId IS NULL THEN 'PENDING' ELSE 'SYNCED' END")
             }
         }
     }
@@ -76,6 +82,7 @@ data class LabelEntity(
     val updatedAt: String,
     val revision: Long,
     val remoteId: String?,
+    val syncStatus: SyncStatus,
 )
 
 @Entity(tableName = "transactions")
@@ -194,6 +201,14 @@ interface HomeDao {
 
     @Query("SELECT * FROM labels ORDER BY isArchived, sortOrder, id")
     fun observeLabels(): Flow<List<LabelEntity>>
+
+    @Query("SELECT MAX(sortOrder) FROM labels") suspend fun lastLabelSortOrder(): Long?
+    @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertLabel(label: LabelEntity)
+    @Update suspend fun updateLabel(label: LabelEntity)
+    @Query("SELECT * FROM labels WHERE syncStatus IN ('PENDING', 'ERROR') ORDER BY sortOrder, id") suspend fun pendingLabels(): List<LabelEntity>
+    @Query("UPDATE labels SET remoteId=:remoteId, revision=:revision, syncStatus='SYNCED', updatedAt=:updatedAt WHERE id=:localId") suspend fun markLabelSynced(localId: String, remoteId: String, revision: Long, updatedAt: String)
+    @Query("UPDATE labels SET syncStatus='ERROR' WHERE id=:localId") suspend fun markLabelError(localId: String)
+    @Query("SELECT remoteId FROM labels WHERE id=:localId") suspend fun labelRemoteId(localId: String): String?
 
     @Query(
         """

@@ -17,6 +17,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import ru.reserve.sin.data.local.CategoryEntity
 import ru.reserve.sin.data.local.TransactionEntity
+import ru.reserve.sin.data.local.LabelEntity
 
 class ServerSyncClient {
     private val client = HttpClient(OkHttp) {
@@ -64,10 +65,10 @@ class ServerSyncClient {
         return response.body()
     }
 
-    suspend fun createTransaction(serverUrl: String, token: String, transaction: TransactionEntity, categoryId: String): RemoteTransaction {
+    suspend fun createTransaction(serverUrl: String, token: String, transaction: TransactionEntity, categoryId: String, labelId: String?): RemoteTransaction {
         val response = client.post("$serverUrl/api/v1/transactions") {
             authenticated(token)
-            setBody(TransactionRequest(categoryId, transaction.amountRub, transaction.comment, transaction.occurredAt, transaction.clientOperationId))
+            setBody(TransactionRequest(categoryId, labelId, transaction.amountRub, transaction.comment, transaction.occurredAt, transaction.clientOperationId))
         }
         require(response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK) { "Не удалось отправить операцию" }
         return response.body<SingleTransactionResponse>().transaction
@@ -77,7 +78,7 @@ class ServerSyncClient {
         serverUrl: String,
         token: String,
         transactions: List<TransactionEntity>,
-        categoryIds: Map<String, String>,
+        categoryIds: Map<String, String>, labelId: String?,
     ): List<RemoteTransaction> {
         val first = transactions.first()
         val response = client.post("$serverUrl/api/v1/transaction-batches") {
@@ -85,6 +86,7 @@ class ServerSyncClient {
             setBody(
                 BatchRequest(
                     occurredAt = first.occurredAt,
+                    labelId = labelId,
                     comment = first.comment,
                     transactions = transactions.map { transaction ->
                         BatchTransactionRequest(categoryIds.getValue(transaction.clientOperationId), transaction.amountRub, transaction.clientOperationId)
@@ -94,6 +96,14 @@ class ServerSyncClient {
         }
         require(response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK) { "Не удалось отправить группу операций" }
         return response.body<BatchResponse>().transactions
+    }
+    suspend fun createLabel(serverUrl: String, token: String, label: LabelEntity): RemoteLabel = labelRequest(serverUrl, token, label, null)
+    suspend fun updateLabel(serverUrl: String, token: String, label: LabelEntity): RemoteLabel = labelRequest(serverUrl, token, label, requireNotNull(label.remoteId))
+    private suspend fun labelRequest(serverUrl: String, token: String, label: LabelEntity, remoteId: String?): RemoteLabel {
+        val response = if (remoteId == null) client.post("$serverUrl/api/v1/labels") { authenticated(token); setBody(LabelRequest(label.name, label.sortOrder)) }
+        else client.patch("$serverUrl/api/v1/labels/$remoteId") { authenticated(token); setBody(LabelPatchRequest(label.name, label.sortOrder, label.isArchived)) }
+        require(response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK) { "Не удалось отправить метку" }
+        return response.body()
     }
 
     suspend fun cancelTransaction(serverUrl: String, token: String, remoteId: String): RemoteTransaction {
@@ -134,6 +144,7 @@ data class RemoteCategory(val id: String, @kotlinx.serialization.SerialName("upd
 @Serializable
 private data class TransactionRequest(
     @kotlinx.serialization.SerialName("category_id") val categoryId: String,
+    @kotlinx.serialization.SerialName("label_id") val labelId: String?,
     @kotlinx.serialization.SerialName("amount_rub") val amountRub: Long,
     val comment: String?,
     @kotlinx.serialization.SerialName("occurred_at") val occurredAt: String,
@@ -143,9 +154,12 @@ private data class TransactionRequest(
 @Serializable
 private data class BatchRequest(
     @kotlinx.serialization.SerialName("occurred_at") val occurredAt: String,
+    @kotlinx.serialization.SerialName("label_id") val labelId: String?,
     val comment: String?,
     val transactions: List<BatchTransactionRequest>,
 )
+@Serializable private data class LabelRequest(val name: String, @kotlinx.serialization.SerialName("sort_order") val sortOrder: Long)
+@Serializable private data class LabelPatchRequest(val name: String, @kotlinx.serialization.SerialName("sort_order") val sortOrder: Long, @kotlinx.serialization.SerialName("is_archived") val isArchived: Boolean)
 
 @Serializable
 private data class BatchTransactionRequest(

@@ -35,6 +35,19 @@ class ReserveRepository(database: ReserveDatabase) {
 
     fun observeLabels(): Flow<List<LabelEntity>> = homeDao.observeLabels()
 
+    suspend fun createLabel(name: String) {
+        val normalized = name.trim()
+        require(normalized.isNotEmpty()) { "Введите название метки" }
+        val timestamp = nowUtc()
+        homeDao.insertLabel(LabelEntity(UUID.randomUUID().toString(), normalized, (homeDao.lastLabelSortOrder() ?: -1) + 1, false, timestamp, timestamp, 0, null, SyncStatus.PENDING))
+    }
+
+    suspend fun updateLabel(label: LabelEntity, name: String, archived: Boolean) {
+        val normalized = name.trim()
+        require(normalized.isNotEmpty()) { "Введите название метки" }
+        homeDao.updateLabel(label.copy(name = normalized, isArchived = archived, updatedAt = nowUtc(), syncStatus = SyncStatus.PENDING))
+    }
+
     fun observeHistoryTransactions(filter: HistoryFilter): Flow<List<HistoryTransactionRow>> =
         homeDao.observeHistoryTransactions(
             after = filter.after,
@@ -91,7 +104,7 @@ class ReserveRepository(database: ReserveDatabase) {
         }
     }
 
-    suspend fun createTransactions(date: String, comment: String, rows: List<OperationLine>) {
+    suspend fun createTransactions(date: String, comment: String, labelId: String?, rows: List<OperationLine>) {
         require(isDate(date)) { "Введите дату в формате ГГГГ-ММ-ДД" }
         require(rows.isNotEmpty()) { "Добавьте хотя бы одну строку" }
         require(rows.all { it.categoryId.isNotBlank() && it.amountRub != 0L }) {
@@ -104,7 +117,7 @@ class ReserveRepository(database: ReserveDatabase) {
                 TransactionEntity(
                     id = UUID.randomUUID().toString(),
                     categoryId = row.categoryId,
-                    labelId = null,
+                    labelId = labelId,
                     batchId = batchId,
                     amountRub = row.amountRub,
                     comment = comment.trim().ifEmpty { null },
@@ -144,6 +157,12 @@ class ReserveRepository(database: ReserveDatabase) {
                     throw error
                 }
             }
+            homeDao.pendingLabels().forEach { label ->
+                try {
+                    val remote = if (label.remoteId == null) client.createLabel(serverUrl, token, label) else client.updateLabel(serverUrl, token, label)
+                    homeDao.markLabelSynced(label.id, remote.id, remote.revision, remote.updatedAt)
+                } catch (error: Exception) { homeDao.markLabelError(label.id); throw error }
+            }
             homeDao.pendingCancellations().forEach { transaction ->
                 try {
                     val remote = client.cancelTransaction(serverUrl, token, requireNotNull(transaction.remoteId))
@@ -160,9 +179,9 @@ class ReserveRepository(database: ReserveDatabase) {
             transactionGroups.forEach { transactions ->
                 try {
                     val remoteTransactions = if (transactions.singleOrNull() != null) {
-                        listOf(client.createTransaction(serverUrl, token, transactions.single(), remoteCategoryId(transactions.single())))
+                        listOf(client.createTransaction(serverUrl, token, transactions.single(), remoteCategoryId(transactions.single()), remoteLabelId(transactions.single())))
                     } else {
-                        client.createBatch(serverUrl, token, transactions, transactions.associate { it.clientOperationId to remoteCategoryId(it) })
+                        client.createBatch(serverUrl, token, transactions, transactions.associate { it.clientOperationId to remoteCategoryId(it) }, remoteLabelId(transactions.first()))
                     }
                     remoteTransactions.forEach { remote ->
                         homeDao.markTransactionSynced(remote.clientOperationId, remote.id, remote.revision, remote.updatedAt)
@@ -186,6 +205,9 @@ class ReserveRepository(database: ReserveDatabase) {
     private suspend fun remoteCategoryId(transaction: TransactionEntity): String =
         requireNotNull(homeDao.categoryRemoteId(transaction.categoryId)) { "Категория ещё не синхронизирована" }
 
+    private suspend fun remoteLabelId(transaction: TransactionEntity): String? =
+        transaction.labelId?.let { requireNotNull(homeDao.labelRemoteId(it)) { "Метка ещё не синхронизирована" } }
+
     private suspend fun applyChanges(changes: RemoteChanges) {
         changes.categories.forEach { remote ->
             val existing = remote.clientCategoryId?.let { homeDao.categoryById(it) } ?: homeDao.categoryByRemoteId(remote.id)
@@ -208,7 +230,7 @@ class ReserveRepository(database: ReserveDatabase) {
         }
         changes.labels.forEach { remote ->
             val existing = homeDao.labelByRemoteId(remote.id)
-            homeDao.upsertLabel(LabelEntity(existing?.id ?: remote.id, remote.name, remote.sortOrder, remote.isArchived, remote.createdAt, remote.updatedAt, remote.revision, remote.id))
+            homeDao.upsertLabel(LabelEntity(existing?.id ?: remote.id, remote.name, remote.sortOrder, remote.isArchived, remote.createdAt, remote.updatedAt, remote.revision, remote.id, SyncStatus.SYNCED))
         }
         changes.transactions.forEach { remote ->
             val existing = homeDao.transactionByClientOperationId(remote.clientOperationId)

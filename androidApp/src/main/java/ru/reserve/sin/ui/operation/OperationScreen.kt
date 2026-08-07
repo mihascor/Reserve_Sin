@@ -45,6 +45,7 @@ import kotlinx.coroutines.launch
 import ru.reserve.sin.data.OperationLine
 import ru.reserve.sin.data.ReserveRepository
 import ru.reserve.sin.data.local.CategoryEntity
+import ru.reserve.sin.data.local.LabelEntity
 import ru.reserve.sin.ui.theme.ReserveSinPrimaryButtonBackground
 import ru.reserve.sin.ui.theme.ReserveSinPrimaryButtonText
 
@@ -59,12 +60,13 @@ class OperationViewModel(private val repository: ReserveRepository) : ViewModel(
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
-    fun save(date: String, comment: String, rows: List<OperationDraftRow>) {
+    val labels = repository.observeLabels()
+    fun save(date: String, comment: String, labelId: String?, rows: List<OperationDraftRow>) {
         viewModelScope.launch {
             runCatching {
                 repository.createTransactions(
                     date = date,
-                    comment = comment,
+                    comment = comment, labelId = labelId,
                     rows = rows.map { row ->
                         val amount = row.amountText.trim().toLongOrNull()
                             ?: error("Сумма должна быть целым числом")
@@ -89,19 +91,23 @@ class OperationViewModelFactory(private val repository: ReserveRepository) : Vie
 @Composable
 fun OperationRoute(viewModel: OperationViewModel, onBack: () -> Unit) {
     val categories by viewModel.categories.collectAsState(initial = emptyList())
+    val labels by viewModel.labels.collectAsState(initial = emptyList())
     val message by viewModel.message.collectAsState()
-    OperationScreen(categories, message, viewModel::save, onBack)
+    OperationScreen(categories, labels.filterNot { it.isArchived }, message, viewModel::save, onBack)
 }
 
 @Composable
 private fun OperationScreen(
     categories: List<CategoryEntity>,
+    labels: List<LabelEntity>,
     message: String?,
-    onSave: (String, String, List<OperationDraftRow>) -> Unit,
+    onSave: (String, String, String?, List<OperationDraftRow>) -> Unit,
     onBack: () -> Unit,
 ) {
     var date by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
     var comment by remember { mutableStateOf("") }
+    var labelId by remember { mutableStateOf<String?>(null) }
+    var labelsExpanded by remember { mutableStateOf(false) }
     var rows by remember { mutableStateOf(listOf(OperationDraftRow())) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -112,6 +118,15 @@ private fun OperationScreen(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Новая операция", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 OutlinedButton(onClick = onBack) { Text("Назад") }
+            }
+        }
+        item {
+            Box {
+                OutlinedButton(onClick = { labelsExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text(labels.firstOrNull { it.id == labelId }?.name ?: "Без метки") }
+                DropdownMenu(expanded = labelsExpanded, onDismissRequest = { labelsExpanded = false }) {
+                    DropdownMenuItem(text = { Text("Без метки") }, onClick = { labelId = null; labelsExpanded = false })
+                    labels.forEach { label -> DropdownMenuItem(text = { Text(label.name) }, onClick = { labelId = label.id; labelsExpanded = false }) }
+                }
             }
         }
         message?.let { item { Text(it, color = MaterialTheme.colorScheme.primary) } }
@@ -146,7 +161,7 @@ private fun OperationScreen(
         }
         item {
             Button(
-                onClick = { onSave(date, comment, rows) },
+                onClick = { onSave(date, comment, labelId, rows) },
                 enabled = categories.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Сохранить локально") }

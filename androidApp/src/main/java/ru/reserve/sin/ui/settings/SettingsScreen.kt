@@ -94,10 +94,10 @@ class SettingsViewModelFactory(
 }
 
 @Composable
-fun SettingsRoute(viewModel: SettingsViewModel, onBack: () -> Unit) {
+fun SettingsRoute(viewModel: SettingsViewModel, onBack: () -> Unit, onManageLabels: () -> Unit = {}) {
     val settings by viewModel.settings.collectAsState(initial = ServerSettings("", false))
     val message by viewModel.message.collectAsState()
-    SettingsScreen(settings, message, viewModel::save, viewModel::checkConnection, viewModel::syncNow, onBack)
+    SettingsScreen(settings, message, viewModel::save, viewModel::checkConnection, viewModel::syncNow, onBack, onManageLabels)
 }
 
 @Composable
@@ -108,6 +108,7 @@ private fun SettingsScreen(
     onCheckConnection: () -> Unit,
     onSyncNow: () -> Unit,
     onBack: () -> Unit,
+    onManageLabels: () -> Unit,
 ) {
     var serverUrl by remember(settings.serverUrl) { mutableStateOf(settings.serverUrl) }
     var token by remember { mutableStateOf("") }
@@ -156,6 +157,7 @@ private fun SettingsScreen(
         message?.let { item { Text(it, color = MaterialTheme.colorScheme.primary) } }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onManageLabels, modifier = Modifier.fillMaxWidth()) { Text("Управление метками") }
                 Button(onClick = { onSave(serverUrl, token) }, modifier = Modifier.fillMaxWidth()) {
                     Text("Сохранить")
                 }
