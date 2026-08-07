@@ -1,0 +1,22 @@
+[Unit]
+Description=Reserve_Sin API server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=reserve-sin
+Group=reserve-sin
+WorkingDirectory=/opt/reserve-sin
+EnvironmentFile=/etc/reserve-sin/reserve.env
+ExecStart=/opt/reserve-sin/reserve-server
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/reserve-sin
+
+[Install]
+WantedBy=multi-user.target

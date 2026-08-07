@@ -1,0 +1,14 @@
+[Unit]
+Description=Create a Reserve_Sin SQLite backup
+After=reserve-sin.service
+
+[Service]
+Type=oneshot
+User=reserve-sin
+Group=reserve-sin
+ExecStart=/opt/reserve-sin/backup-reserve-sin.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/backups/reserve-sin

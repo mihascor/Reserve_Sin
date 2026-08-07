@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Reserve_Sin SQLite backup every day
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 UTC
+Persistent=true
+Unit=reserve-sin-backup.service
+
+[Install]
+WantedBy=timers.target
