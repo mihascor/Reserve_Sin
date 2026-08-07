@@ -40,9 +40,10 @@ fun HomeRoute(
     onAddOperation: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenCategory: (String) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
-    HomeScreen(state, onManageCategories, onAddOperation, onOpenHistory, onOpenSettings)
+    HomeScreen(state, onManageCategories, onAddOperation, onOpenHistory, onOpenSettings, onOpenCategory)
 }
 
 @Composable
@@ -52,6 +53,7 @@ fun HomeScreen(
     onAddOperation: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenCategory: (String) -> Unit,
 ) {
     if (state.isLoading) {
         Column(
@@ -106,7 +108,7 @@ fun HomeScreen(
                 )
             }
             items(state.categories, key = { it.id }) { category ->
-                CategoryCard(category)
+                CategoryCard(category, onClick = { onOpenCategory(category.id) })
             }
         }
     }
@@ -184,8 +186,8 @@ private fun EmptyCategoriesCard(onManageCategories: () -> Unit) {
 }
 
 @Composable
-private fun CategoryCard(category: HomeCategoryUi) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun CategoryCard(category: HomeCategoryUi, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(

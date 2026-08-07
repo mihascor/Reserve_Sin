@@ -1,5 +1,8 @@
 package ru.reserve.sin.ui.settings
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,11 +38,13 @@ import ru.reserve.sin.data.remote.ServerConnectionResult
 import ru.reserve.sin.data.ReserveRepository
 import ru.reserve.sin.data.settings.ServerSettings
 import ru.reserve.sin.data.settings.ServerSettingsRepository
+import ru.reserve.sin.data.export.HistoryCsvExporter
 
 class SettingsViewModel(
     private val settingsRepository: ServerSettingsRepository,
     private val connectionChecker: ServerConnectionChecker,
     private val reserveRepository: ReserveRepository,
+    private val historyCsvExporter: HistoryCsvExporter,
 ) : ViewModel() {
     val settings = settingsRepository.settings
     private val _message = MutableStateFlow<String?>(null)
@@ -79,17 +84,26 @@ class SettingsViewModel(
                 .onFailure { _message.value = it.message ?: "Не удалось синхронизировать данные" }
         }
     }
+
+    fun export(uri: Uri) {
+        viewModelScope.launch {
+            runCatching { historyCsvExporter.export(uri) }
+                .onSuccess { _message.value = "История экспортирована" }
+                .onFailure { _message.value = it.message ?: "Не удалось экспортировать историю" }
+        }
+    }
 }
 
 class SettingsViewModelFactory(
     private val settingsRepository: ServerSettingsRepository,
     private val connectionChecker: ServerConnectionChecker,
     private val reserveRepository: ReserveRepository,
+    private val historyCsvExporter: HistoryCsvExporter,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         check(modelClass.isAssignableFrom(SettingsViewModel::class.java))
-        return SettingsViewModel(settingsRepository, connectionChecker, reserveRepository) as T
+        return SettingsViewModel(settingsRepository, connectionChecker, reserveRepository, historyCsvExporter) as T
     }
 }
 
@@ -97,7 +111,10 @@ class SettingsViewModelFactory(
 fun SettingsRoute(viewModel: SettingsViewModel, onBack: () -> Unit, onManageLabels: () -> Unit = {}) {
     val settings by viewModel.settings.collectAsState(initial = ServerSettings("", false))
     val message by viewModel.message.collectAsState()
-    SettingsScreen(settings, message, viewModel::save, viewModel::checkConnection, viewModel::syncNow, onBack, onManageLabels)
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        uri?.let(viewModel::export)
+    }
+    SettingsScreen(settings, message, viewModel::save, viewModel::checkConnection, viewModel::syncNow, { exportLauncher.launch("reserve-sin-history.csv") }, onBack, onManageLabels)
 }
 
 @Composable
@@ -107,6 +124,7 @@ private fun SettingsScreen(
     onSave: (String, String) -> Unit,
     onCheckConnection: () -> Unit,
     onSyncNow: () -> Unit,
+    onExport: () -> Unit,
     onBack: () -> Unit,
     onManageLabels: () -> Unit,
 ) {
@@ -166,6 +184,9 @@ private fun SettingsScreen(
                 }
                 OutlinedButton(onClick = onSyncNow, modifier = Modifier.fillMaxWidth()) {
                     Text("Синхронизировать сейчас")
+                }
+                OutlinedButton(onClick = onExport, modifier = Modifier.fillMaxWidth()) {
+                    Text("Экспортировать историю CSV")
                 }
             }
         }

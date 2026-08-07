@@ -137,6 +137,13 @@ data class HomeCategoryRow(
     val hasPendingChanges: Boolean,
 )
 
+data class CategoryDetailsRow(
+    val id: String,
+    val name: String,
+    val targetAmountRub: Long?,
+    val balanceRub: Long,
+)
+
 data class HistoryTransactionRow(
     val id: String,
     val categoryId: String,
@@ -147,6 +154,17 @@ data class HistoryTransactionRow(
     val amountRub: Long,
     val comment: String?,
     val occurredAt: String,
+    val isCancelled: Boolean,
+    val syncStatus: SyncStatus,
+)
+
+data class ExportTransactionRow(
+    val occurredAt: String,
+    val categoryName: String,
+    val labelName: String?,
+    val amountRub: Long,
+    val comment: String?,
+    val batchId: String?,
     val isCancelled: Boolean,
     val syncStatus: SyncStatus,
 )
@@ -173,6 +191,21 @@ interface HomeDao {
         """,
     )
     fun observeHomeCategories(): Flow<List<HomeCategoryRow>>
+
+    @Query(
+        """
+        SELECT
+            c.id,
+            c.name,
+            c.targetAmountRub,
+            COALESCE(SUM(CASE WHEN t.isCancelled = 0 THEN t.amountRub ELSE 0 END), 0) AS balanceRub
+        FROM categories c
+        LEFT JOIN transactions t ON t.categoryId = c.id
+        WHERE c.id = :categoryId
+        GROUP BY c.id
+        """,
+    )
+    fun observeCategoryDetails(categoryId: String): Flow<CategoryDetailsRow?>
 
     @Query(
         """
@@ -246,6 +279,25 @@ interface HomeDao {
         includeCancelled: Boolean,
         onlyUnsynced: Boolean,
     ): Flow<List<HistoryTransactionRow>>
+
+    @Query(
+        """
+        SELECT
+            t.occurredAt,
+            c.name AS categoryName,
+            l.name AS labelName,
+            t.amountRub,
+            t.comment,
+            t.batchId,
+            t.isCancelled,
+            t.syncStatus
+        FROM transactions t
+        INNER JOIN categories c ON c.id = t.categoryId
+        LEFT JOIN labels l ON l.id = t.labelId
+        ORDER BY t.occurredAt DESC, t.createdAt DESC, t.id DESC
+        """,
+    )
+    suspend fun exportTransactions(): List<ExportTransactionRow>
 
     @Query("SELECT MAX(sortOrder) FROM categories")
     suspend fun lastCategorySortOrder(): Long?

@@ -16,6 +16,7 @@ import ru.reserve.sin.data.local.ReserveDatabase
 import ru.reserve.sin.data.remote.ServerConnectionChecker
 import ru.reserve.sin.data.settings.ServerSettingsRepository
 import ru.reserve.sin.data.sync.SyncWorkScheduler
+import ru.reserve.sin.data.export.HistoryCsvExporter
 import ru.reserve.sin.ui.home.HomeRoute
 import ru.reserve.sin.ui.home.HomeViewModel
 import ru.reserve.sin.ui.home.HomeViewModelFactory
@@ -35,6 +36,9 @@ import ru.reserve.sin.ui.theme.ReserveSinTheme
 import ru.reserve.sin.ui.labels.LabelsRoute
 import ru.reserve.sin.ui.labels.LabelsViewModel
 import ru.reserve.sin.ui.labels.LabelsViewModelFactory
+import ru.reserve.sin.ui.category.CategoryRoute
+import ru.reserve.sin.ui.category.CategoryViewModel
+import ru.reserve.sin.ui.category.CategoryViewModelFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,7 +56,16 @@ class MainActivity : ComponentActivity() {
             ReserveSinTheme {
                 Surface {
                     var route by remember { mutableStateOf("home") }
+                    var selectedCategoryId by remember { mutableStateOf<String?>(null) }
                     when (route) {
+                        "category" -> {
+                            selectedCategoryId?.let { categoryId ->
+                                val categoryViewModel: CategoryViewModel = viewModel(
+                                    factory = CategoryViewModelFactory(categoryId, repository),
+                                )
+                                CategoryRoute(categoryViewModel) { route = "home" }
+                            }
+                        }
                         "categories" -> {
                             val categoriesViewModel: CategoriesViewModel = viewModel(
                                 factory = CategoriesViewModelFactory(repository),
@@ -67,7 +80,7 @@ class MainActivity : ComponentActivity() {
                         }
                         "settings" -> {
                             val settingsViewModel: SettingsViewModel = viewModel(
-                                factory = SettingsViewModelFactory(settingsRepository, ServerConnectionChecker(), repository),
+                                factory = SettingsViewModelFactory(settingsRepository, ServerConnectionChecker(), repository, HistoryCsvExporter(applicationContext, repository)),
                             )
                             SettingsRoute(settingsViewModel, { route = "home" }, { route = "labels" })
                         }
@@ -88,6 +101,7 @@ class MainActivity : ComponentActivity() {
                                 onAddOperation = { route = "operation" },
                                 onOpenHistory = { route = "history" },
                                 onOpenSettings = { route = "settings" },
+                                onOpenCategory = { categoryId -> selectedCategoryId = categoryId; route = "category" },
                             )
                         }
                     }

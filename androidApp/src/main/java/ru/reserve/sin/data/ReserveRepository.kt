@@ -7,6 +7,7 @@ import java.util.TimeZone
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import ru.reserve.sin.data.local.HomeCategoryRow
+import ru.reserve.sin.data.local.CategoryDetailsRow
 import ru.reserve.sin.data.local.HomeDao
 import ru.reserve.sin.data.local.ReserveDatabase
 import ru.reserve.sin.data.local.CategoryEntity
@@ -17,11 +18,15 @@ import ru.reserve.sin.data.remote.RemoteChanges
 import ru.reserve.sin.data.local.LabelEntity
 import ru.reserve.sin.data.local.SyncMetadataEntity
 import ru.reserve.sin.data.local.HistoryTransactionRow
+import ru.reserve.sin.data.local.ExportTransactionRow
+import ru.reserve.sin.data.export.historyCsv
 
 class ReserveRepository(database: ReserveDatabase) {
     private val homeDao: HomeDao = database.homeDao()
 
     fun observeHomeCategories(): Flow<List<HomeCategoryRow>> = homeDao.observeHomeCategories()
+
+    fun observeCategoryDetails(categoryId: String): Flow<CategoryDetailsRow?> = homeDao.observeCategoryDetails(categoryId)
 
     fun observeTotalBalance(): Flow<Long> = homeDao.observeTotalBalance()
 
@@ -58,6 +63,8 @@ class ReserveRepository(database: ReserveDatabase) {
             includeCancelled = filter.includeCancelled,
             onlyUnsynced = filter.onlyUnsynced,
         )
+
+    suspend fun exportHistoryCsv(): String = historyCsv(homeDao.exportTransactions())
 
     suspend fun createCategory(name: String, targetAmountRub: Long?) {
         val normalizedName = name.trim()
