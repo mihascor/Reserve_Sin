@@ -1,4 +1,4 @@
-reserve-sin.duckdns.org {
+https://reserve-sin.duckdns.org:8443 {
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:8080
 }
