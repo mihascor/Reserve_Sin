@@ -1,3 +1,9 @@
+{
+	servers {
+		protocols h1 h2
+	}
+}
+
 https://reserve-sin.duckdns.org:8443 {
 	encode zstd gzip
 

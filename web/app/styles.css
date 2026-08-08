@@ -36,7 +36,9 @@ td { color: #c9d1d9; font-size: .875rem; }
 .date-column { min-width: 116px; text-align: left; white-space: nowrap; }
 .label-column { min-width: 126px; }
 .label { color: #8b949e; }
-.label-value { color: #c9d1d9; }
+.label select { width: 100%; min-width: 0; padding: 3px 24px 3px 8px; border: 1px solid #30363d; border-radius: 999px; color: #c9d1d9; background: #161b22; font: inherit; cursor: pointer; }
+.label select:focus-visible { outline: 2px solid #58a6ff; outline-offset: 1px; }
+.label select:disabled { cursor: wait; opacity: .7; }
 .amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .income { color: #56d364; background: rgb(46 160 67 / .16); }
 .expense { color: #ff7b72; background: rgb(248 81 73 / .16); }

@@ -26,7 +26,7 @@ func NewRouter(logger *slog.Logger, db *sql.DB, apiToken string) http.Handler {
 		api.Get("/web-history", webHistoryList(db))
 		api.Post("/transactions", transactionCreate(db))
 		api.Post("/transaction-batches", transactionBatchCreate(db))
-		api.Patch("/transactions/{id}", transactionUpdateNotSupported)
+		api.Patch("/transactions/{id}", transactionUpdate(db))
 		api.Post("/transactions/{id}/cancel", transactionCancel(db))
 		api.Get("/summary", summaryGet(db))
 		api.Get("/changes", changesGet(db))
@@ -43,9 +43,9 @@ func health(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		_ = json.NewEncoder(writer).Encode(map[string]string{
-			"status":  "ok",
+			"status":   "ok",
 			"database": "ok",
-			"version": "not_configured",
+			"version":  "not_configured",
 		})
 	}
 }

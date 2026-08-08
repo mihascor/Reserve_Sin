@@ -41,6 +41,16 @@
     return response.json();
   }
 
+  async function patchLabel(transactionID, labelID) {
+    const response = await fetch(`/app-api/api/v1/transactions/${encodeURIComponent(transactionID)}`, {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label_id: labelID }),
+    });
+    if (!response.ok) throw requestError(response);
+  }
+
   async function loadAllTransactions() {
     const items = [];
     let cursor = null;
@@ -59,6 +69,37 @@
     const element = document.createElement('td');
     element.textContent = text;
     if (className) element.className = className;
+    row.append(element);
+  }
+
+  function labelCell(row, transaction, labels) {
+    const element = document.createElement('td');
+    element.className = 'label';
+    const select = document.createElement('select');
+    select.setAttribute('aria-label', `Метка операции от ${formatDate(transaction.occurred_at)}`);
+    select.append(new Option('—', ''));
+    labels.forEach((label) => select.append(new Option(label.name, label.id)));
+    if (transaction.label_id && !labels.some((label) => label.id === transaction.label_id)) {
+      select.append(new Option(transaction.label_name || 'Архивная метка', transaction.label_id));
+    }
+    select.value = transaction.label_id || '';
+    select.addEventListener('change', async () => {
+      const previousValue = transaction.label_id || '';
+      select.disabled = true;
+      try {
+        await patchLabel(transaction.id, select.value || null);
+        await load();
+      } catch (reason) {
+        select.value = previousValue;
+        errorMessage.textContent = reason instanceof Error && /^request failed: \d+$/.test(reason.message)
+          ? `Не удалось изменить метку (${reason.message.replace('request failed: ', 'HTTP ')}).`
+          : 'Не удалось изменить метку. Повторите попытку.';
+        error.hidden = false;
+      } finally {
+        select.disabled = false;
+      }
+    });
+    element.append(select);
     row.append(element);
   }
 
@@ -81,7 +122,7 @@
     return [...active, ...[...names].sort((left, right) => left.localeCompare(right, 'ru'))];
   }
 
-  function render(categories, transactions) {
+  function render(categories, labels, transactions) {
     const categoryNames = orderedCategories(categories, transactions);
     const totals = new Map(categoryNames.map((name) => [name, 0]));
     let debt = 0;
@@ -128,7 +169,7 @@
       .forEach((transaction) => {
         const row = document.createElement('tr');
         cell(row, formatDate(transaction.occurred_at), 'date-column');
-        cell(row, transaction.label_name || '—', transaction.label_name ? 'label label-value' : 'label');
+        labelCell(row, transaction, labels);
         categoryNames.forEach((name) => {
           const amount = name === transaction.category_name ? amountOf(transaction) : 0;
           cell(row, formatAmount(amount), amount ? `amount ${amount > 0 ? 'income' : 'expense'}` : 'amount empty-amount');
@@ -150,15 +191,19 @@
     retry.disabled = true;
 
     try {
-      const [categoriesResponse, transactions] = await Promise.all([
+      const [categoriesResponse, labelsResponse, transactions] = await Promise.all([
         fetchJSON('/app-api/api/v1/categories'),
+        fetchJSON('/app-api/api/v1/labels'),
         loadAllTransactions(),
       ]);
-      if (!Array.isArray(categoriesResponse.categories)) throw new Error('invalid response');
+      if (!Array.isArray(categoriesResponse.categories) || !Array.isArray(labelsResponse.labels)) throw new Error('invalid response');
       if (transactions.length === 0) {
         empty.hidden = false;
       } else {
-        render(categoriesResponse.categories, transactions);
+        const activeLabels = labelsResponse.labels
+          .filter((label) => !label.is_archived)
+          .sort((left, right) => left.sort_order - right.sort_order || left.name.localeCompare(right.name, 'ru'));
+        render(categoriesResponse.categories, activeLabels, transactions);
         tableWrap.hidden = false;
       }
       error.hidden = true;

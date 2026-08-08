@@ -73,6 +73,7 @@ type webHistoryTransaction struct {
 	ID           string  `json:"id"`
 	OccurredAt   string  `json:"occurred_at"`
 	CategoryName string  `json:"category_name"`
+	LabelID      *string `json:"label_id"`
 	LabelName    *string `json:"label_name"`
 	Comment      *string `json:"comment"`
 	IncomeRub    *int64  `json:"income_rub"`
@@ -115,6 +116,28 @@ func (value *nullableInt64) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type nullableString struct {
+	Set   bool
+	Value *string
+}
+
+func (value *nullableString) UnmarshalJSON(data []byte) error {
+	value.Set = true
+	if string(data) == "null" {
+		value.Value = nil
+		return nil
+	}
+	var parsed string
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return err
+	}
+	if strings.TrimSpace(parsed) == "" {
+		return errors.New("value must not be empty")
+	}
+	value.Value = &parsed
+	return nil
+}
+
 type labelInput struct {
 	Name      string `json:"name"`
 	SortOrder int64  `json:"sort_order"`
@@ -133,6 +156,10 @@ type transactionInput struct {
 	Comment           *string `json:"comment"`
 	OccurredAt        string  `json:"occurred_at"`
 	ClientOperationID string  `json:"client_operation_id"`
+}
+
+type transactionPatch struct {
+	LabelID nullableString `json:"label_id"`
 }
 
 type batchInput struct {
@@ -770,8 +797,78 @@ func transactionCancel(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func transactionUpdateNotSupported(w http.ResponseWriter, r *http.Request) {
-	writeError(w, 409, "operation_not_editable", "cancel the transaction and create a corrected one", nil)
+func transactionUpdate(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var input transactionPatch
+		if !decodeJSON(w, r, &input) {
+			return
+		}
+		if !input.LabelID.Set {
+			writeError(w, http.StatusBadRequest, "validation_error", "label_id is required", nil)
+			return
+		}
+		tx, err := db.BeginTx(r.Context(), nil)
+		if err != nil {
+			internalError(w)
+			return
+		}
+		defer tx.Rollback()
+		item, err := scanTransaction(tx.QueryRowContext(r.Context(), "SELECT "+transactionColumns+" FROM transactions WHERE id=?", chi.URLParam(r, "id")))
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "not_found", "transaction was not found", nil)
+			return
+		}
+		if err != nil {
+			internalError(w)
+			return
+		}
+		if item.IsCancelled {
+			writeError(w, http.StatusConflict, "operation_not_editable", "cancelled transaction cannot be edited", nil)
+			return
+		}
+		if input.LabelID.Value != nil {
+			var archived int
+			err = tx.QueryRowContext(r.Context(), "SELECT is_archived FROM transaction_labels WHERE id=?", *input.LabelID.Value).Scan(&archived)
+			if errors.Is(err, sql.ErrNoRows) || archived == 1 {
+				writeError(w, http.StatusBadRequest, "validation_error", "label is invalid or archived", nil)
+				return
+			}
+			if err != nil {
+				internalError(w)
+				return
+			}
+		}
+		if sameOptionalString(item.LabelID, input.LabelID.Value) {
+			if err = tx.Commit(); err != nil {
+				internalError(w)
+				return
+			}
+			writeJSON(w, http.StatusOK, item)
+			return
+		}
+		revision, err := nextRevision(r.Context(), tx)
+		if err != nil {
+			internalError(w)
+			return
+		}
+		item.LabelID, item.Revision, item.UpdatedAt = input.LabelID.Value, revision, now()
+		if _, err = tx.ExecContext(r.Context(), "UPDATE transactions SET label_id=?,updated_at=?,revision=? WHERE id=?", item.LabelID, item.UpdatedAt, item.Revision, item.ID); err != nil {
+			internalError(w)
+			return
+		}
+		if err = tx.Commit(); err != nil {
+			internalError(w)
+			return
+		}
+		writeJSON(w, http.StatusOK, item)
+	}
+}
+
+func sameOptionalString(left, right *string) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
 }
 
 func transactionsList(db *sql.DB) http.HandlerFunc {
@@ -880,7 +977,7 @@ func webHistoryList(db *sql.DB) http.HandlerFunc {
 		}
 
 		args = append(args, limit+1)
-		rows, err := db.QueryContext(r.Context(), `SELECT t.id,t.occurred_at,c.name,l.name,t.comment,t.amount_rub,t.batch_id
+		rows, err := db.QueryContext(r.Context(), `SELECT t.id,t.occurred_at,c.name,t.label_id,l.name,t.comment,t.amount_rub,t.batch_id
 			FROM transactions t
 			JOIN categories c ON c.id=t.category_id
 			LEFT JOIN transaction_labels l ON l.id=t.label_id
@@ -895,14 +992,17 @@ func webHistoryList(db *sql.DB) http.HandlerFunc {
 		items := make([]webHistoryTransaction, 0, limit)
 		for rows.Next() {
 			var item webHistoryTransaction
-			var labelName, comment, batchID sql.NullString
+			var labelID, labelName, comment, batchID sql.NullString
 			var amount int64
-			if err := rows.Scan(&item.ID, &item.OccurredAt, &item.CategoryName, &labelName, &comment, &amount, &batchID); err != nil {
+			if err := rows.Scan(&item.ID, &item.OccurredAt, &item.CategoryName, &labelID, &labelName, &comment, &amount, &batchID); err != nil {
 				internalError(w)
 				return
 			}
 			if labelName.Valid {
 				item.LabelName = &labelName.String
+			}
+			if labelID.Valid {
+				item.LabelID = &labelID.String
 			}
 			if comment.Valid {
 				item.Comment = &comment.String

@@ -81,6 +81,66 @@ func TestWebHistoryFiltersAndPaginates(t *testing.T) {
 	}
 }
 
+func TestTransactionPatchChangesOnlyLabel(t *testing.T) {
+	router := testRouter(t)
+	category := createCategoryForTest(t, router, "Подушка")
+	label := createLabelForTest(t, router, "Долг")
+	createdTransaction := createTransactionForTest(t, router, category.ID, "2026-08-05T10:00:00Z", -500, "label-patch-1")
+
+	updated := sendJSON(t, router, http.MethodPatch, "/api/v1/transactions/"+createdTransaction.ID, `{"label_id":"`+label.ID+`"}`)
+	if updated.Code != http.StatusOK {
+		t.Fatalf("update label status = %d, body = %s", updated.Code, updated.Body.String())
+	}
+	var result transaction
+	if err := json.NewDecoder(updated.Body).Decode(&result); err != nil {
+		t.Fatalf("decode updated transaction: %v", err)
+	}
+	if result.LabelID == nil || *result.LabelID != label.ID || result.AmountRub != -500 || result.CategoryID != category.ID {
+		t.Fatalf("unexpected updated transaction: %+v", result)
+	}
+
+	history := sendJSON(t, router, http.MethodGet, "/api/v1/web-history", "")
+	if history.Code != http.StatusOK {
+		t.Fatalf("history status = %d, body = %s", history.Code, history.Body.String())
+	}
+	var page struct {
+		Transactions []webHistoryTransaction `json:"transactions"`
+	}
+	if err := json.NewDecoder(history.Body).Decode(&page); err != nil {
+		t.Fatalf("decode history: %v", err)
+	}
+	if len(page.Transactions) != 1 || page.Transactions[0].LabelID == nil || *page.Transactions[0].LabelID != label.ID || page.Transactions[0].LabelName == nil || *page.Transactions[0].LabelName != "Долг" {
+		t.Fatalf("unexpected history: %+v", page.Transactions)
+	}
+
+	cleared := sendJSON(t, router, http.MethodPatch, "/api/v1/transactions/"+createdTransaction.ID, `{"label_id":null}`)
+	if cleared.Code != http.StatusOK {
+		t.Fatalf("clear label status = %d, body = %s", cleared.Code, cleared.Body.String())
+	}
+	if err := json.NewDecoder(cleared.Body).Decode(&result); err != nil {
+		t.Fatalf("decode cleared transaction: %v", err)
+	}
+	if result.LabelID != nil {
+		t.Fatalf("label ID = %v, want nil", *result.LabelID)
+	}
+}
+
+func TestTransactionPatchRejectsArchivedLabel(t *testing.T) {
+	router := testRouter(t)
+	category := createCategoryForTest(t, router, "Подушка")
+	label := createLabelForTest(t, router, "Архив")
+	transaction := createTransactionForTest(t, router, category.ID, "2026-08-05T10:00:00Z", 500, "label-patch-2")
+	archived := sendJSON(t, router, http.MethodPatch, "/api/v1/labels/"+label.ID, `{"is_archived":true}`)
+	if archived.Code != http.StatusOK {
+		t.Fatalf("archive label status = %d, body = %s", archived.Code, archived.Body.String())
+	}
+
+	updated := sendJSON(t, router, http.MethodPatch, "/api/v1/transactions/"+transaction.ID, `{"label_id":"`+label.ID+`"}`)
+	if updated.Code != http.StatusBadRequest {
+		t.Fatalf("archived label status = %d, body = %s", updated.Code, updated.Body.String())
+	}
+}
+
 func createCategoryForTest(t *testing.T, router http.Handler, name string) category {
 	t.Helper()
 	response := sendJSON(t, router, http.MethodPost, "/api/v1/categories", `{"name":"`+name+`","sort_order":0}`)
@@ -90,6 +150,19 @@ func createCategoryForTest(t *testing.T, router http.Handler, name string) categ
 	var item category
 	if err := json.NewDecoder(response.Body).Decode(&item); err != nil {
 		t.Fatalf("decode category: %v", err)
+	}
+	return item
+}
+
+func createLabelForTest(t *testing.T, router http.Handler, name string) label {
+	t.Helper()
+	response := sendJSON(t, router, http.MethodPost, "/api/v1/labels", `{"name":"`+name+`","sort_order":0}`)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("create label status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var item label
+	if err := json.NewDecoder(response.Body).Decode(&item); err != nil {
+		t.Fatalf("decode label: %v", err)
 	}
 	return item
 }
