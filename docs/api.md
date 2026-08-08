@@ -52,7 +52,7 @@ Go API реализован для категорий, меток, операц�
 }
 ```
 
-`income_rub` или `expense_rub` содержит положительное целое число рублей; другое поле равно `null`. `label_name`, `comment` и `next_cursor` также могут быть `null`. Браузер обращается к этому маршруту исключительно как `/app-api/api/v1/web-history`; Caddy после Basic Auth удаляет клиентский `Authorization` и добавляет внутренний Bearer-заголовок.
+`income_rub` или `expense_rub` содержит положительное целое число рублей; другое поле равно `null`. `label_name`, `comment` и `next_cursor` также могут быть `null`. Веб-страница обращается к этому маршруту как `/app-api/api/v1/web-history`, а к `/app-api/api/v1/categories` — для порядка столбцов. Caddy заменяет клиентский `Authorization` внутренним Bearer-заголовком.
 
 ## Формат сущностей
 
