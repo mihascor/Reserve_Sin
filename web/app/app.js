@@ -77,6 +77,7 @@
       tableWrap.hidden = transactions.children.length === 0;
       empty.hidden = transactions.children.length !== 0;
       loadMore.hidden = !nextCursor;
+      error.hidden = true;
       status.hidden = true;
     } catch (reason) {
       status.hidden = true;
