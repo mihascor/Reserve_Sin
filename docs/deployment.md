@@ -6,6 +6,16 @@
 
 Ручные проверки завершены: Android-приложение проверено с production-сервером, включая синхронизацию и повторную отправку данных, а на VPS проверено восстановление свежей резервной SQLite-копии с последующим запуском API и `PRAGMA integrity_check`. После этой проверки фактическая история из подготовленного CSV импортирована однократно; повторный запуск с тем же `source-id` не должен создавать дубликаты.
 
+## Административный SSH-доступ
+
+Подключение к серверу выполняется только по SSH-ключу от пользователя `root`:
+
+```bash
+ssh -i server_193_124_91_76 root@193.124.91.76
+```
+
+Вход по паролю запрещён. Закрытый ключ не добавляется в репозиторий и не передаётся через документацию.
+
 ## Следующий этап
 
 MVP-сборка Android `0.4.4` установлена на устройство. Дальнейшие изменения относятся к развитию продукта после MVP; перед ними следует сохранить рабочую резервную копию и проверить синхронизацию импортированных серверных данных в локальной Room-базе.
@@ -17,6 +27,7 @@ MVP-сборка Android `0.4.4` установлена на устройств�
 | `deploy/systemd/reserve-sin.service` | Запуск API от системного пользователя `reserve-sin`. |
 | `deploy/systemd/reserve-sin-backup.service` | Однократный запуск резервного копирования. |
 | `deploy/systemd/reserve-sin-backup.timer` | Ежедневный запуск резервного копирования в 03:15 UTC с выполнением пропущенного запуска после включения сервера. |
+| `deploy/systemd/caddy-reserve-sin.conf` | Systemd override Caddy: сохраняет загрузку env-файла, но запрещает вывод его переменных в journald. |
 | `deploy/caddy/Caddyfile` | Публикация домена через Caddy и proxy на локальный API. |
 | `web/app/` | Статические файлы закрытой read-only страницы `/app/`. |
 | `deploy/scripts/backup-reserve-sin.sh` | Резервное копирование через SQLite backup API, проверка целостности и хранение 14 последних суток. |
@@ -29,7 +40,7 @@ MVP-сборка Android `0.4.4` установлена на устройств�
 2. Поместить бинарник в `/opt/reserve-sin/reserve-server`, скрипт в `/opt/reserve-sin/backup-reserve-sin.sh`, назначить владельцем файлов пользователя `reserve-sin`. Бинарник и скрипт должны быть исполняемыми.
 3. На основе [примера параметров](../server/reserve.env.example) создать `/etc/reserve-sin/reserve.env`, задать случайный `RESERVE_SIN_API_TOKEN` и ограничить доступ к файлу владельцем `root` и режимом `0600`.
 4. Установить systemd-файлы в `/etc/systemd/system/`, затем выполнить `systemctl daemon-reload`, включить и запустить `reserve-sin.service` и `reserve-sin-backup.timer`.
-5. Скопировать `web/` в `/opt/reserve-sin/web`. Создать `/etc/reserve-sin/caddy.env` с переменными `RESERVE_SIN_WEB_BASIC_AUTH_USER`, `RESERVE_SIN_WEB_BASIC_AUTH_HASH` и `RESERVE_SIN_API_TOKEN`, назначить владельца `root`, группу системного пользователя Caddy и режим `0640`. Подключить этот файл через systemd override Caddy как `EnvironmentFile`; настоящий хеш и токен не записываются в Git или командную историю.
+5. Скопировать `web/` в `/opt/reserve-sin/web`. Создать `/etc/reserve-sin/caddy.env` с переменными `RESERVE_SIN_WEB_BASIC_AUTH_USER`, `RESERVE_SIN_WEB_BASIC_AUTH_HASH` и `RESERVE_SIN_API_TOKEN`, назначить владельца `root`, группу системного пользователя Caddy и режим `0640`. Подключить этот файл через systemd override Caddy как `EnvironmentFile`, а [caddy-reserve-sin.conf](../deploy/systemd/caddy-reserve-sin.conf) установить в `/etc/systemd/system/caddy.service.d/reserve-sin.conf`. Этот override убирает флаг `--environ`, чтобы Caddy не записывал значения env-файла в journald; переменные при этом по-прежнему доступны Caddy. Настоящий хеш и токен не записываются в Git или командную историю.
 6. Подключить `deploy/caddy/Caddyfile` к действующей конфигурации Caddy и проверить её штатной командой проверки конфигурации Caddy перед reload. Caddy должен быть единственным публичным входом; Go-сервер остаётся на `127.0.0.1:8080`.
 7. Проверить `GET /health` локально на VPS и затем по HTTPS снаружи. После этого создать на Android только тестовые категории и операции, вручную синхронизировать их и повторить отправку тех же данных.
 
@@ -54,7 +65,7 @@ Go API слушает только `127.0.0.1:8080`. Caddy публикует `h
 
 Статические файлы страницы истории обслуживаются тем же Caddy из `/opt/reserve-sin/web`, без Node.js, отдельного веб-сервера или контейнера. Caddy разделяет `/app/*`, `/app-api/*` и существующий `/api/v1/*`: первые два маршрута требуют Basic Auth, а третий сохраняет Bearer-аутентификацию Go API для Android. `/app-api/*` удаляет клиентский `Authorization`, добавляет Bearer с токеном из env Caddy и проксирует только на `127.0.0.1:8080`.
 
-Для `/app/*` Caddy выставляет CSP с источниками только `self`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, запрет встраивания и `Cache-Control: no-store`; `/app-api/*` также не кэшируется. Перед reload нужно проверить конфигурацию, убедиться, что `/app/` и `/app-api/*` без Basic Auth отвечают `401`, и что HTML, JavaScript и DevTools Network не содержат Bearer-токен. Секреты Basic Auth и API-токен передаются Caddy вне Git.
+Для `/app/*` Caddy выставляет CSP с источниками только `self`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, запрет встраивания и `Cache-Control: no-store`; `/app-api/*` также не кэшируется. Перед reload нужно проверить конфигурацию, убедиться, что `/app/` и `/app-api/*` без Basic Auth отвечают `401`, и что HTML, JavaScript, DevTools Network и журнал systemd не содержат Bearer-токен. Секреты Basic Auth и API-токен передаются Caddy вне Git.
 
 ## Резервное копирование и восстановление
 

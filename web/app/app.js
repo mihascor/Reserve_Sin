@@ -6,6 +6,7 @@
   const dateFormat = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' });
   const status = document.querySelector('#status');
   const error = document.querySelector('#error');
+  const errorMessage = document.querySelector('#error-message');
   const empty = document.querySelector('#empty');
   const tableWrap = document.querySelector('#table-wrap');
   const transactions = document.querySelector('#transactions');
@@ -77,8 +78,11 @@
       empty.hidden = transactions.children.length !== 0;
       loadMore.hidden = !nextCursor;
       status.hidden = true;
-    } catch (_) {
+    } catch (reason) {
       status.hidden = true;
+      errorMessage.textContent = reason instanceof Error && /^request failed: \d+$/.test(reason.message)
+        ? `Не удалось загрузить историю (${reason.message.replace('request failed: ', 'HTTP ')}).`
+        : 'Не удалось загрузить историю. Проверьте подключение и повторите попытку.';
       error.hidden = false;
       loadMore.hidden = true;
     } finally {
